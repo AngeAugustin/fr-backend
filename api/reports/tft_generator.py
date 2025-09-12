@@ -18,12 +18,13 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
 
     # Mapping SYSCOHADA détaillé
     groups = {
-        'tresorerie': ['50', '51', '53'],
+        'financier': ['50', '51', '53'],
         'clients': ['41', '70', '4457'],
         'fournisseurs': ['40', '60', '4456'],
         'personnel': ['42', '64'],
         'impots': ['44', '63'],
-        'immobilisations': ['20', '21', '23', '26', '27'],
+        'immobilisations': ['20', '21', '23'],  # corporelles + incorporelles
+        'immobilisations_financieres': ['26', '27'],
         'stocks': ['31', '32', '33', '34', '35', '36', '37'],
         'capitaux_propres': ['10', '11', '12', '13', '14'],
         'provisions_dettes': ['15', '16', '17', '18', '19'],
