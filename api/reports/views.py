@@ -1,0 +1,92 @@
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.http import HttpResponse, Http404
+from .models import GeneratedFile
+import os
+
+class GeneratedFileDownloadView(APIView):
+    def get(self, request, pk):
+        try:
+            gen_file = GeneratedFile.objects.get(pk=pk)
+        except GeneratedFile.DoesNotExist:
+            raise Http404("Fichier non trouvé")
+        if not gen_file.file_content:
+            return Response({'error': 'Aucun contenu binaire enregistré.'}, status=404)
+        response = HttpResponse(gen_file.file_content, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        filename = f"generated_{pk}.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+import pandas as pd
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import BalanceUploadSerializer
+from django.core.files.storage import default_storage
+from django.conf import settings
+import os
+from .tft_generator import generate_tft_and_sheets
+
+from .models import BalanceUpload, GeneratedFile
+
+class BalanceUploadView(APIView):
+    def post(self, request):
+        serializer = BalanceUploadSerializer(data=request.data)
+        if serializer.is_valid():
+            file = serializer.validated_data['file']
+            start_date = serializer.validated_data['start_date']
+            end_date = serializer.validated_data['end_date']
+            # Enregistrement de l'upload
+            balance_upload = BalanceUpload.objects.create(
+                file=file,
+                start_date=start_date,
+                end_date=end_date,
+                user=request.user if request.user.is_authenticated else None
+            )
+            abs_path = balance_upload.file.path
+            try:
+                # Nouvelle version : la fonction doit retourner le contenu binaire des fichiers générés
+                tft_content, sheets_contents, tft_data, sheets_data = generate_tft_and_sheets(abs_path, start_date, end_date)
+                # Enregistrement du fichier TFT uniquement en base
+                GeneratedFile.objects.create(
+                    balance_upload=balance_upload,
+                    file_type='TFT',
+                    file_content=tft_content
+                )
+                # Enregistrement des feuilles maîtresses uniquement en base
+                for group_name, sheet_content in sheets_contents.items():
+                    GeneratedFile.objects.create(
+                        balance_upload=balance_upload,
+                        file_type='feuille_maitresse',
+                        group_name=group_name,
+                        file_content=sheet_content
+                    )
+                balance_upload.status = 'success'
+                balance_upload.save()
+            except Exception as e:
+                balance_upload.status = 'error'
+                balance_upload.error_message = str(e)
+                balance_upload.save()
+                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Historique de l'upload
+            history = {
+                'id': balance_upload.id,
+                'file': balance_upload.file.url,
+                'start_date': balance_upload.start_date,
+                'end_date': balance_upload.end_date,
+                'uploaded_at': balance_upload.uploaded_at,
+                'status': balance_upload.status,
+                'generated_files': [
+                    {
+                        'file_type': f.file_type,
+                        'group_name': f.group_name,
+                        'download_url': f'/api/reports/download-generated/{f.id}/',
+                        'created_at': f.created_at
+                    } for f in balance_upload.generated_files.all()
+                ]
+            }
+            return Response({
+                'tft_data': tft_data,
+                'sheets_data': sheets_data,
+                'history': history
+            })
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
