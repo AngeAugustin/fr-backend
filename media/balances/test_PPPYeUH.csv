@@ -1,0 +1,5 @@
+id,account_number,account_label,account_class,balance,total_debit,total_credit,entries_count,created_at,financial_report_id,account_lookup_key
+"1","0000050-01","Banque",0,10000,10000,0,2,"2024-09-04 18:15:33.363993+01","report1",NULL
+"2","0000050-01","Banque",0,12000,12000,0,2,"2025-09-04 18:15:33.363993+01","report2",NULL
+"3","0000051-02","Caisse",0,9000,9000,0,2,"2024-09-04 18:15:33.363993+01","report1",NULL
+"4","0000051-02","Caisse",0,9500,9500,0,2,"2025-09-04 18:15:33.363993+01","report2",NULL

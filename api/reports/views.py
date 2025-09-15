@@ -45,7 +45,7 @@ class BalanceUploadView(APIView):
             abs_path = balance_upload.file.path
             try:
                 # Nouvelle version : la fonction doit retourner le contenu binaire des fichiers générés
-                tft_content, sheets_contents, tft_data, sheets_data = generate_tft_and_sheets(abs_path, start_date, end_date)
+                tft_content, sheets_contents, tft_data, sheets_data, coherence = generate_tft_and_sheets(abs_path, start_date, end_date)
                 # Enregistrement du fichier TFT uniquement en base
                 GeneratedFile.objects.create(
                     balance_upload=balance_upload,
@@ -62,6 +62,52 @@ class BalanceUploadView(APIView):
                     )
                 balance_upload.status = 'success'
                 balance_upload.save()
+                # Préparation de la réponse avec les fichiers et les données JSON
+                # Préparation de l'historique avec liens de téléchargement
+                history = {
+                    'id': balance_upload.id,
+                    'file': balance_upload.file.url,
+                    'start_date': balance_upload.start_date,
+                    'end_date': balance_upload.end_date,
+                    'uploaded_at': balance_upload.uploaded_at,
+                    'status': balance_upload.status,
+                    'generated_files': [
+                        {
+                            'file_type': f.file_type,
+                            'group_name': f.group_name,
+                            'download_url': f'/api/reports/download-generated/{f.id}/',
+                            'created_at': f.created_at
+                        } for f in balance_upload.generated_files.all()
+                    ]
+                }
+                import math
+                import pandas as pd
+                def sanitize(obj):
+                    if isinstance(obj, dict):
+                        return {k: sanitize(v) for k, v in obj.items()}
+                    elif isinstance(obj, list):
+                        return [sanitize(v) for v in obj]
+                    elif isinstance(obj, float):
+                        if math.isnan(obj) or math.isinf(obj):
+                            return None
+                        return obj
+                    elif isinstance(obj, pd.Timestamp):
+                        return obj.isoformat()
+                    else:
+                        return obj
+                tft_data_clean = sanitize(tft_data)
+                sheets_data_clean = sanitize(sheets_data)
+                # Stockage des données JSON dans BalanceUpload
+                balance_upload.tft_json = tft_data_clean
+                balance_upload.feuilles_maitresses_json = sheets_data_clean
+                balance_upload.coherence_json = coherence
+                balance_upload.save()
+                return Response({
+                    'tft_json': tft_data_clean,
+                    'feuilles_maitresses_json': sheets_data_clean,
+                    'coherence': coherence,
+                    'history': history
+                }, status=status.HTTP_201_CREATED)
             except Exception as e:
                 balance_upload.status = 'error'
                 balance_upload.error_message = str(e)

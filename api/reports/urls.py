@@ -25,7 +25,10 @@ class BalanceHistoryView(APIView):
                         'download_url': f'/api/reports/download-generated/{f.id}/',
                         'created_at': f.created_at
                     } for f in upload.generated_files.all()
-                ]
+                ],
+                'tft_json': upload.tft_json,
+                'feuilles_maitresses_json': upload.feuilles_maitresses_json,
+                'coherence': upload.coherence_json
             })
         return Response({'history': history})
 

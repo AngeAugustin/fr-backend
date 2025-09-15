@@ -2,6 +2,31 @@ import pandas as pd
 import os
 
 def generate_tft_and_sheets(csv_path, start_date, end_date):
+    # Contrôle de cohérence TFT
+    def controle_coherence(tft_data):
+        # Références des rubriques
+        flux_operationnels = tft_data.get('ZB', {}).get('montant', 0)
+        flux_investissement = tft_data.get('ZC', {}).get('montant', 0)
+        flux_financement = tft_data.get('ZE', {}).get('montant', 0)
+        treso_ouverture = tft_data.get('ZA', {}).get('montant', 0)
+        treso_cloture = tft_data.get('ZH', {}).get('montant', 0)
+        treso_ouverture = treso_ouverture if treso_ouverture is not None else 0
+        treso_cloture = treso_cloture if treso_cloture is not None else 0
+        variation_tft = flux_operationnels + flux_investissement + flux_financement
+        variation_treso = (treso_cloture or 0) - (treso_ouverture or 0)
+        return {
+            'variation_tft': variation_tft,
+            'variation_treso': variation_treso,
+            'is_coherent': abs(variation_tft - variation_treso) < 1e-2,
+            'details': {
+                'flux_operationnels': flux_operationnels,
+                'flux_investissement': flux_investissement,
+                'flux_financement': flux_financement,
+                'treso_ouverture': treso_ouverture,
+                'treso_cloture': treso_cloture
+            }
+        }
+
     # Lecture du CSV
     df = pd.read_csv(csv_path)
     # Filtrage par période (si la colonne created_at correspond à la date d'écriture)
@@ -15,19 +40,21 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
         start_dt = pd.to_datetime(start_date)
         end_dt = pd.to_datetime(end_date)
         df = df[(df['created_at'] >= start_dt) & (df['created_at'] <= end_dt)]
+        # Ajout de la colonne 'exercice' à partir de l'année de 'created_at'
+        df['exercice'] = df['created_at'].dt.year
 
     # Mapping SYSCOHADA détaillé
     groups = {
-        'financier': ['50', '51', '53'],
-        'clients': ['41', '70', '4457'],
-        'fournisseurs': ['40', '60', '4456'],
-        'personnel': ['42', '64'],
-        'impots': ['44', '63'],
-        'immobilisations': ['20', '21', '23'],  # corporelles + incorporelles
-        'immobilisations_financieres': ['26', '27'],
-        'stocks': ['31', '32', '33', '34', '35', '36', '37'],
-        'capitaux_propres': ['10', '11', '12', '13', '14'],
-        'provisions_dettes': ['15', '16', '17', '18', '19'],
+        'financier': ['501', '502', '503', '504', '505', '506', '521', '522', '523', '524', '531', '532', '533', '541', '542', '58', '59'],
+        'Clients-Ventes': ['411', '416', '417', '418', '419', '491', '701', '702', '703', '704', '705', '706', '707', '708', '781'],
+        'Fournisseurs-Achats': ['401', '402', '403', '408', '409', '419', '601', '602', '603', '604', '605', '606', '607', '608'],
+        'personnel': ['421', '422', '423', '424', '425', '43', '447', '661', '662', '663', '664', '665', '666', '667', '668'],
+        'Impots-Taxes': ['441', '442', '443', '444', '445', '446', '447', '448', '449', '631', '633', '635', '695'],
+        'Immobilisations Corporelles - Incorporelles': ['201', '203', '204', '205', '208', '211', '212', '213', '214', '215', '218', '237', '238'],
+        'immobilisations_financieres': ['251', '256', '261', '262', '264', '265', '266', '267', '268', '269', '274', '275'],
+        'stocks': ['311', '321', '322', '323', '331', '335', '341', '345', '351', '358', '39'],
+        'capitaux_propres': ['101', '103', '104', '105', '106', '108', '109', '110', '130', '131'],
+        'Provisions R-C': ['141', '142', '143', '148', '149'],
     }
 
     tft_mapping = {
@@ -46,8 +73,11 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
         prefixes = set(prefixes)
         def match_prefix(acc):
             acc = str(acc)
+            # Extraire la partie avant le tiret, enlever les zéros initiaux
+            base = acc.split('-')[0].lstrip('0')
+            # Préfixe sur 2 ou 3 chiffres selon le modèle (ici 2 par défaut)
             for p in prefixes:
-                if acc.startswith(p):
+                if base.startswith(p):
                     return True
             return False
         return df[df['account_number'].apply(match_prefix)]
@@ -67,8 +97,10 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
     # Modèle TFT conforme au tableau fourni
     # Préfixes à adapter selon la structure de ton plan comptable
     tft_model = [
+    {'ref': '2H_TRESO_NEG', 'libelle': "Trésorerie passive (négative) - concours et escomptes", 'formule': None, 'prefixes': ['561', '564', '565']},
+    {'ref': '2H_TRESO_POS', 'libelle': "Trésorerie active (positive) - composition détaillée", 'formule': None, 'prefixes': ['521', '522', '523', '524', '531', '532', '541', '542', '501', '502', '503', '504', '505', '506']},
         {'ref': 'ZA', 'libelle': 'Trésorerie nette au 1er janvier', 'formule': 'Trésorerie actif N-1 - Trésorerie passif N-1', 'prefixes': ['50', '51', '53']},
-        {'ref': 'FA', 'libelle': 'Capacité d’AutoFinancement Globale (CAFG)', 'formule': None, 'prefixes': ['70', '71', '72', '74', '60', '61', '62', '63', '64', '65']},
+        {'ref': 'FA', 'libelle': 'Capacité d’AutoFinancement Globale (CAFG)', 'formule': None, 'prefixes': ['131', '681-689', '691-699', '781-789', '791-799', '775', '675']},
         {'ref': 'FB', 'libelle': 'Variation Actif circulant HAO', 'formule': None, 'prefixes': ['31', '32', '33', '34', '35', '36', '37']},
         {'ref': 'FC', 'libelle': 'Variation des stocks', 'formule': None, 'prefixes': ['31', '32', '33', '34', '35', '36', '37']},
         {'ref': 'FD', 'libelle': 'Variation des créances', 'formule': None, 'prefixes': ['41']},
@@ -79,14 +111,25 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
         {'ref': 'FG', 'libelle': 'Décaissements liés aux acquisitions d’immobilisations corporelles', 'formule': None, 'prefixes': ['21']},
         {'ref': 'FH', 'libelle': 'Décaissements liés aux acquisitions d’immobilisations financières', 'formule': None, 'prefixes': ['26', '27']},
         {'ref': 'FI', 'libelle': 'Encaissements liés aux cessions d’immobilisations incorporelles et corporelles', 'formule': None, 'prefixes': ['20', '21']},
-        {'ref': 'FJ', 'libelle': 'Encaissements liés aux cessions d’immobilisations financières', 'formule': None, 'prefixes': ['26', '27']},
+        {'ref': 'FJ', 'libelle': 'Encaissements liés aux cessions d’immobilisations financières', 'formule': None, 'prefixes': ['26', '27', '251', '261', '262']},
+        {'ref': 'FJ_VMP', 'libelle': 'Produits nets sur cessions VMP (767)', 'formule': None, 'prefixes': ['767']},
+        {'ref': 'INV_DIV', 'libelle': "Dividendes reçus (761-762)", 'formule': None, 'prefixes': ['761', '762']},
+        {'ref': 'INV_CRE', 'libelle': "Produits de créances financières (763-764)", 'formule': None, 'prefixes': ['763', '764']},
         {'ref': 'ZC', 'libelle': 'Flux de trésorerie provenant des activités d’investissement (somme FF à FJ)', 'formule': 'FF+FG+FH+FI+FJ', 'prefixes': []},
         {'ref': 'FK', 'libelle': 'Encaissements provenant de capital apporté nouveaux', 'formule': None, 'prefixes': ['10', '11', '12', '13', '14']},
+        {'ref': 'T4_101', 'libelle': "Capital social (101) - hors apports en nature", 'formule': None, 'prefixes': ['101']},
+        {'ref': 'T4_103', 'libelle': "Primes d'émission (103) - encaissements effectifs", 'formule': None, 'prefixes': ['103']},
+        {'ref': 'T4_104', 'libelle': "Écarts d'évaluation (104) - non concerné", 'formule': None, 'prefixes': ['104']},
         {'ref': 'FL', 'libelle': 'Encaissements provenant de subventions reçues', 'formule': None, 'prefixes': ['14']},
+        {'ref': 'T5_141', 'libelle': "Subventions d'investissement reçues (141) - hors reprises (865)", 'formule': None, 'prefixes': ['141']},
         {'ref': 'FM', 'libelle': 'Dividendes versés', 'formule': None, 'prefixes': []},
+        {'ref': 'TH1_108', 'libelle': "Compte de l'exploitant (108) - prélèvements nets", 'formule': None, 'prefixes': ['108']},
+        {'ref': 'TH2_457', 'libelle': "Dividendes à payer (457) - distributions décidées/payées", 'formule': None, 'prefixes': ['457']},
         {'ref': 'D', 'libelle': 'Flux de trésorerie provenant des capitaux propres (somme FK à FM)', 'formule': 'FK+FL-FM', 'prefixes': []},
         {'ref': 'FO', 'libelle': 'Encaissements des emprunts et autres dettes financières', 'formule': None, 'prefixes': ['15', '16', '17', '18', '19']},
         {'ref': 'FP', 'libelle': 'Décaissements liés au remboursement des emprunts et autres dettes financières', 'formule': None, 'prefixes': ['15', '16', '17', '18', '19']},
+    {'ref': 'TG_161_168', 'libelle': "Nouveaux emprunts (161-168) - augmentation/variation nette", 'formule': None, 'prefixes': ['161', '162', '163', '164', '165', '168']},
+    {'ref': 'TP_161_168', 'libelle': "Remboursements d'emprunts (161-168) - capital remboursé uniquement", 'formule': None, 'prefixes': ['161', '162', '163', '164', '165', '168']},
         {'ref': 'ZE', 'libelle': 'Flux de trésorerie provenant des activités de financement (FO-FP)', 'formule': 'FO-FP', 'prefixes': []},
         {'ref': 'G', 'libelle': 'VARIATION DE LA TRÉSORERIE NETTE DE LA PÉRIODE (D+B+C+F)', 'formule': 'D+B+C+F', 'prefixes': []},
         {'ref': 'ZH', 'libelle': 'Trésorerie nette au 31 Décembre (G+A)', 'formule': 'G+A', 'prefixes': ['50', '51', '53']},
@@ -100,38 +143,125 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
     montant_refs = {}
     # On prépare les DataFrames N et N-1
     if 'exercice' in df.columns:
-        # N = exercice max, N-1 = exercice précédent
         exercices = sorted(df['exercice'].unique())
         n = exercices[-1]
-        n_1 = exercices[-2] if len(exercices) > 1 else n
-        df_n = df[df['exercice'] == n]
-        df_n1 = df[df['exercice'] == n_1]
+        if len(exercices) > 1:
+            n_1 = exercices[-2]
+            df_n = df[df['exercice'] == n]
+            df_n1 = df[df['exercice'] == n_1]
+        else:
+            # Un seul exercice disponible
+            df_n = df[df['exercice'] == n]
+            # Créer un DataFrame vide pour N-1 avec les mêmes colonnes
+            df_n1 = pd.DataFrame(columns=df.columns)
     else:
         # Si pas de colonne, on considère tout comme N
         df_n = df.copy()
         df_n1 = pd.DataFrame(columns=df.columns)
 
     for ligne in tft_model:
-        comptes_n = filter_by_prefix(df_n, ligne['prefixes']) if ligne['prefixes'] else pd.DataFrame()
-        comptes_n1 = filter_by_prefix(df_n1, ligne['prefixes']) if ligne['prefixes'] else pd.DataFrame()
-        solde_n = comptes_n['balance'].sum() if not comptes_n.empty else 0
-        solde_n1 = comptes_n1['balance'].sum() if not comptes_n1.empty else 0
-        variation = solde_n - solde_n1
-        # Pour les flux, on peut utiliser total_debit/total_credit si pertinent
-        debit_n = comptes_n['total_debit'].sum() if 'total_debit' in comptes_n else 0
-        credit_n = comptes_n['total_credit'].sum() if 'total_credit' in comptes_n else 0
-        montant = None
-        comptes = comptes_n.to_dict(orient='records')
-        if ligne['formule']:
-            formule = ligne['formule']
-            for ref in montant_refs:
-                formule = formule.replace(ref, f"({montant_refs[ref]['montant']})")
-            try:
-                montant = eval(formule)
-            except Exception:
-                montant = None
+        if ligne['ref'] == 'FA':
+            cafg_comptes = [
+                {'prefixes': ['131'], 'sign': 1},
+                {'prefixes': [str(i) for i in range(681, 690)], 'sign': 1},
+                {'prefixes': [str(i) for i in range(691, 700)], 'sign': 1},
+                {'prefixes': [str(i) for i in range(781, 790)], 'sign': -1},
+                {'prefixes': [str(i) for i in range(791, 800)], 'sign': -1},
+                {'prefixes': ['775'], 'sign': -1},
+                {'prefixes': ['675'], 'sign': 1},
+            ]
+            montant = 0
+            comptes = []
+            for item in cafg_comptes:
+                comptes_n = filter_by_prefix(df_n, item['prefixes'])
+                solde = comptes_n['balance'].sum() if not comptes_n.empty else 0
+                montant += item['sign'] * solde
+                comptes.extend(comptes_n.to_dict(orient='records'))
+            solde_n = montant
+            # Si N-1 existe, calculer, sinon mettre à zéro
+            solde_n1 = None if df_n1.empty else 0
+            variation = None if df_n1.empty else 0
+            debit_n = None
+            credit_n = None
         else:
-            montant = solde_n
+            comptes_n = filter_by_prefix(df_n, ligne['prefixes']) if ligne['prefixes'] else pd.DataFrame()
+            comptes_n1 = filter_by_prefix(df_n1, ligne['prefixes']) if ligne['prefixes'] else pd.DataFrame()
+            if ligne['ref'] == 'T5_141':
+                comptes_n = comptes_n[comptes_n['account_number'] != '865'] if not comptes_n.empty else comptes_n
+                comptes_n1 = comptes_n1[comptes_n1['account_number'] != '865'] if not comptes_n1.empty else comptes_n1
+            solde_n = comptes_n['balance'].sum() if not comptes_n.empty else 0
+            solde_n1 = comptes_n1['balance'].sum() if not comptes_n1.empty else 0
+            solde_n = solde_n if solde_n is not None else 0
+            # Si N-1 n'existe pas, mettre à zéro
+            solde_n1 = solde_n1 if not df_n1.empty else 0
+            if ligne['ref'] == 'FJ_VMP':
+                variation = (solde_n or 0) - (solde_n1 or 0)
+                debit_n = comptes_n['total_debit'].sum() if 'total_debit' in comptes_n else 0
+                credit_n = comptes_n['total_credit'].sum() if 'total_credit' in comptes_n else 0
+                montant = variation
+                comptes = comptes_n.to_dict(orient='records')
+            elif ligne['ref'] == 'FB':
+                variation = 0
+                comptes_486_n = filter_by_prefix(df_n, ['486'])
+                comptes_486_n1 = filter_by_prefix(df_n1, ['486'])
+                solde_486_n = comptes_486_n['balance'].sum() if not comptes_486_n.empty else 0
+                solde_486_n1 = comptes_486_n1['balance'].sum() if not comptes_486_n1.empty else 0
+                variation += -((solde_486_n or 0) - (solde_486_n1 or 0)) if not df_n1.empty else 0
+                comptes_487_n = filter_by_prefix(df_n, ['487'])
+                comptes_487_n1 = filter_by_prefix(df_n1, ['487'])
+                solde_487_n = comptes_487_n['balance'].sum() if not comptes_487_n.empty else 0
+                solde_487_n1 = comptes_487_n1['balance'].sum() if not comptes_487_n1.empty else 0
+                variation += ((solde_487_n or 0) - (solde_487_n1 or 0)) if not df_n1.empty else 0
+                comptes_461_469_n = filter_by_prefix(df_n, [str(i) for i in range(461, 470)])
+                comptes_461_469_n1 = filter_by_prefix(df_n1, [str(i) for i in range(461, 470)])
+                solde_461_469_n = comptes_461_469_n['balance'].sum() if not comptes_461_469_n.empty else 0
+                solde_461_469_n1 = comptes_461_469_n1['balance'].sum() if not comptes_461_469_n1.empty else 0
+                variation += ((solde_461_469_n or 0) - (solde_461_469_n1 or 0)) if not df_n1.empty else 0
+            elif ligne['ref'] == 'FC':
+                variation = -((solde_n or 0) - (solde_n1 or 0)) if not df_n1.empty else 0
+            elif ligne['ref'] == 'FD':
+                variation = (solde_n or 0) - (solde_n1 or 0) if not df_n1.empty else 0
+            elif ligne['ref'] == 'FE':
+                variation = (solde_n or 0) - (solde_n1 or 0) if not df_n1.empty else 0
+            elif ligne['ref'] == 'FH':
+                variation = 0
+                for prefix in ['251', '256', '261', '262']:
+                    comptes_n = filter_by_prefix(df_n, [prefix])
+                    comptes_n1 = filter_by_prefix(df_n1, [prefix])
+                    solde_n = comptes_n['balance'].sum() if not comptes_n.empty else 0
+                    solde_n1 = comptes_n1['balance'].sum() if not comptes_n1.empty else 0
+                    cessions_n = filter_by_prefix(df_n, ['775'])
+                    cessions_n1 = filter_by_prefix(df_n1, ['775'])
+                    cessions = cessions_n['balance'].sum() if not cessions_n.empty else 0
+                    cessions += cessions_n1['balance'].sum() if not cessions_n1.empty else 0
+                    variation += ((solde_n or 0) - (solde_n1 or 0)) + (cessions or 0) if not df_n1.empty else 0
+                for prefix in [str(i) for i in range(264, 269)]:
+                    comptes_n = filter_by_prefix(df_n, [prefix])
+                    comptes_n1 = filter_by_prefix(df_n1, [prefix])
+                    solde_n = comptes_n['balance'].sum() if not comptes_n.empty else 0
+                    solde_n1 = comptes_n1['balance'].sum() if not comptes_n1.empty else 0
+                    variation += (solde_n or 0) - (solde_n1 or 0) if not df_n1.empty else 0
+                comptes_275_n = filter_by_prefix(df_n, ['275'])
+                comptes_275_n1 = filter_by_prefix(df_n1, ['275'])
+                solde_275_n = comptes_275_n['balance'].sum() if not comptes_275_n.empty else 0
+                solde_275_n1 = comptes_275_n1['balance'].sum() if not comptes_275_n1.empty else 0
+                variation += (solde_275_n or 0) - (solde_275_n1 or 0) if not df_n1.empty else 0
+            else:
+                variation = (solde_n or 0) - (solde_n1 or 0) if not df_n1.empty else 0
+            debit_n = comptes_n['total_debit'].sum() if 'total_debit' in comptes_n else 0
+            credit_n = comptes_n['total_credit'].sum() if 'total_credit' in comptes_n else 0
+            montant = None
+            comptes = comptes_n.to_dict(orient='records')
+            if ligne['formule']:
+                formule = ligne['formule']
+                for ref in montant_refs:
+                    formule = formule.replace(ref, f"({montant_refs[ref]['montant']})")
+                try:
+                    montant = eval(formule)
+                except Exception:
+                    montant = None
+            else:
+                montant = variation if not df_n1.empty else solde_n
         montant_refs[ligne['ref']] = {
             'montant': montant if montant is not None else 0,
             'solde_n': solde_n,
@@ -173,7 +303,9 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
         group_n1 = filter_by_prefix(df_n1, prefixes)
         solde_n = group_n['balance'].sum() if not group_n.empty else 0
         solde_n1 = group_n1['balance'].sum() if not group_n1.empty else 0
-        variation = solde_n - solde_n1
+        solde_n = solde_n if solde_n is not None else 0
+        solde_n1 = solde_n1 if solde_n1 is not None else 0
+        variation = (solde_n or 0) - (solde_n1 or 0)
         sheets_data[group_name] = {
             'solde_n': solde_n,
             'solde_n1': solde_n1,
@@ -182,4 +314,6 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
             'comptes_n1': group_n1.to_dict(orient='records'),
             'correspondance_tft': [ref for ref in tft_data if set(prefixes) & set(tft_model[[l['ref'] for l in tft_model].index(ref)]['prefixes'])]
         }
-    return tft_content, sheets_contents, tft_data, sheets_data
+    # Ajout du contrôle de cohérence au retour
+    coherence = controle_coherence(tft_data)
+    return tft_content, sheets_contents, tft_data, sheets_data, coherence

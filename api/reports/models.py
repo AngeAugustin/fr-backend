@@ -11,6 +11,9 @@ class BalanceUpload(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     status = models.CharField(max_length=20, default='success')
     error_message = models.TextField(blank=True, null=True)
+    tft_json = models.JSONField(blank=True, null=True)
+    feuilles_maitresses_json = models.JSONField(blank=True, null=True)
+    coherence_json = models.JSONField(blank=True, null=True)
 
 class GeneratedFile(models.Model):
     balance_upload = models.ForeignKey(BalanceUpload, related_name='generated_files', on_delete=models.CASCADE)
