@@ -13,7 +13,16 @@ class GeneratedFileDownloadView(APIView):
         if not gen_file.file_content:
             return Response({'error': 'Aucun contenu binaire enregistré.'}, status=404)
         response = HttpResponse(gen_file.file_content, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        filename = f"generated_{pk}.xlsx"
+        
+        # Génération du nom de fichier avec type et "generated"
+        if gen_file.file_type == 'TFT':
+            filename = f"generated_tft_{pk}.xlsx"
+        elif gen_file.file_type == 'feuille_maitresse':
+            group_name = gen_file.group_name or 'feuille'
+            filename = f"generated_feuille_maitresse_{group_name}_{pk}.xlsx"
+        else:
+            filename = f"generated_{gen_file.file_type}_{pk}.xlsx"
+        
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
 import pandas as pd
