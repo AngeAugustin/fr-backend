@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import BalanceUploadView, GeneratedFileDownloadView, GeneratedFileCommentView
+from .views import BalanceUploadView, GeneratedFileDownloadView, GeneratedFileCommentView, ProcessAccountDataView, AutoProcessView
 from .models import BalanceUpload
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -39,4 +39,7 @@ urlpatterns = [
     path('balance-history/', BalanceHistoryView.as_view(), name='balance-history'),
     path('download-generated/<int:pk>/', GeneratedFileDownloadView.as_view(), name='download-generated'),
     path('comment/<int:generated_file_id>/', GeneratedFileCommentView.as_view(), name='comment'),
+    # Nouvelles URLs pour le traitement automatique
+    path('process-account-data/', ProcessAccountDataView.as_view(), name='process-account-data'),
+    path('auto-process/', AutoProcessView.as_view(), name='auto-process'),
 ]
