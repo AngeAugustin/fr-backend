@@ -6,7 +6,7 @@ Script de test pour vérifier les données chargées et la génération TFT
 import os
 import sys
 import django
-from datetime import datetime
+from datetime import datetime, date
 
 # Configuration Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fr_backend.settings')
@@ -59,15 +59,37 @@ def test_account_data_loaded():
 def test_tft_generation(financial_report_id):
     """Test 3: Tester la génération TFT"""
     try:
-        # Déterminer les dates
+        # Déterminer les dates selon la logique SYSCOHADA
         account_data = AccountData.objects.filter(financial_report_id=financial_report_id)
         if not account_data.exists():
             print(f"❌ Génération TFT: Aucune donnée pour {financial_report_id}")
             return False
         
-        dates = account_data.values_list('created_at', flat=True)
-        start_date = min(dates).date()
-        end_date = max(dates).date()
+        # Analyser les exercices disponibles
+        exercices = set()
+        for data in account_data:
+            exercices.add(data.created_at.year)
+        
+        exercices = sorted(exercices)
+        print(f"📅 Exercices détectés: {exercices}")
+        
+        if len(exercices) >= 2:
+            # N-1 et N disponibles : 01/01/N-1 à 31/12/N
+            n_1 = exercices[-2]  # N-1
+            n = exercices[-1]    # N
+            start_date = date(n_1, 1, 1)   # 01/01/N-1
+            end_date = date(n, 12, 31)     # 31/12/N
+            print(f"📅 Logique N-1/N: {start_date} à {end_date}")
+        elif len(exercices) == 1:
+            # Un seul exercice : 01/01/N à 31/12/N
+            n = exercices[0]
+            start_date = date(n, 1, 1)     # 01/01/N
+            end_date = date(n, 12, 31)     # 31/12/N
+            print(f"📅 Logique N uniquement: {start_date} à {end_date}")
+        else:
+            # Aucun exercice détecté
+            print("❌ Aucun exercice détecté")
+            return False
         
         print(f"🔄 Génération TFT pour {financial_report_id}...")
         print(f"   Période: {start_date} à {end_date}")
@@ -107,11 +129,31 @@ def test_tft_generation(financial_report_id):
 def test_balance_upload_creation(financial_report_id):
     """Test 4: Tester la création d'un BalanceUpload"""
     try:
-        # Déterminer les dates
+        # Déterminer les dates selon la logique SYSCOHADA
         account_data = AccountData.objects.filter(financial_report_id=financial_report_id)
-        dates = account_data.values_list('created_at', flat=True)
-        start_date = min(dates).date()
-        end_date = max(dates).date()
+        
+        # Analyser les exercices disponibles
+        exercices = set()
+        for data in account_data:
+            exercices.add(data.created_at.year)
+        
+        exercices = sorted(exercices)
+        
+        if len(exercices) >= 2:
+            # N-1 et N disponibles : 01/01/N-1 à 31/12/N
+            n_1 = exercices[-2]  # N-1
+            n = exercices[-1]    # N
+            start_date = date(n_1, 1, 1)   # 01/01/N-1
+            end_date = date(n, 12, 31)     # 31/12/N
+        elif len(exercices) == 1:
+            # Un seul exercice : 01/01/N à 31/12/N
+            n = exercices[0]
+            start_date = date(n, 1, 1)     # 01/01/N
+            end_date = date(n, 12, 31)     # 31/12/N
+        else:
+            # Aucun exercice détecté
+            print("❌ Aucun exercice détecté")
+            return False
         
         # Créer un BalanceUpload
         balance_upload = BalanceUpload.objects.create(

@@ -5,10 +5,42 @@ from .models import GeneratedFile, BalanceUpload, AccountData
 from .serializers import GeneratedFileCommentSerializer
 from .tft_generator import generate_tft_and_sheets_from_database
 import os
-from datetime import datetime
+from datetime import datetime, date
 import math
 import pandas as pd
 import numpy as np
+
+def determine_tft_dates(financial_report_id):
+    """
+    Détermine les dates de début et fin pour le TFT selon la logique SYSCOHADA
+    - Si N et N-1 disponibles : 01/01/N-1 à 31/12/N
+    - Si N uniquement : 01/01/N à 31/12/N
+    """
+    account_data = AccountData.objects.filter(financial_report_id=financial_report_id)
+    
+    # Analyser les exercices disponibles
+    exercices = set()
+    for data in account_data:
+        exercices.add(data.created_at.year)
+    
+    exercices = sorted(exercices)
+    
+    if len(exercices) >= 2:
+        # N-1 et N disponibles : 01/01/N-1 à 31/12/N
+        n_1 = exercices[-2]  # N-1
+        n = exercices[-1]    # N
+        start_date = date(n_1, 1, 1)   # 01/01/N-1
+        end_date = date(n, 12, 31)     # 31/12/N
+    elif len(exercices) == 1:
+        # Un seul exercice : 01/01/N à 31/12/N
+        n = exercices[0]
+        start_date = date(n, 1, 1)     # 01/01/N
+        end_date = date(n, 12, 31)     # 31/12/N
+    else:
+        # Aucun exercice détecté
+        raise ValueError("Aucun exercice détecté dans les données")
+    
+    return start_date, end_date
 
 class GeneratedFileDownloadView(APIView):
     def get(self, request, pk):
@@ -351,11 +383,8 @@ class AutoProcessView(APIView):
         
         for financial_report_id in unprocessed_ids:
             try:
-                # Déterminer les dates de début et fin à partir des données
-                account_data = AccountData.objects.filter(financial_report_id=financial_report_id)
-                dates = account_data.values_list('created_at', flat=True)
-                start_date = min(dates).date()
-                end_date = max(dates).date()
+                # Déterminer les dates selon la logique SYSCOHADA
+                start_date, end_date = determine_tft_dates(financial_report_id)
                 
                 # Créer un BalanceUpload
                 balance_upload = BalanceUpload.objects.create(
