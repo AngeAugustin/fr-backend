@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import BalanceUploadView, GeneratedFileDownloadView
+from .views import BalanceUploadView, GeneratedFileDownloadView, GeneratedFileCommentView
 from .models import BalanceUpload
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -20,9 +20,11 @@ class BalanceHistoryView(APIView):
                 'error_message': upload.error_message,
                 'generated_files': [
                     {
+                        'id': f.id,
                         'file_type': f.file_type,
                         'group_name': f.group_name,
                         'download_url': f'/api/reports/download-generated/{f.id}/',
+                        'comment': f.comment,  # Commentaire de chaque feuille maîtresse
                         'created_at': f.created_at
                     } for f in upload.generated_files.all()
                 ],
@@ -36,4 +38,5 @@ urlpatterns = [
     path('upload-balance/', BalanceUploadView.as_view(), name='upload-balance'),
     path('balance-history/', BalanceHistoryView.as_view(), name='balance-history'),
     path('download-generated/<int:pk>/', GeneratedFileDownloadView.as_view(), name='download-generated'),
+    path('comment/<int:generated_file_id>/', GeneratedFileCommentView.as_view(), name='comment'),
 ]

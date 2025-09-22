@@ -1,7 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.http import HttpResponse, Http404
-from .models import GeneratedFile
+from .models import GeneratedFile, BalanceUpload
+from .serializers import GeneratedFileCommentSerializer
 import os
 
 class GeneratedFileDownloadView(APIView):
@@ -82,26 +83,37 @@ class BalanceUploadView(APIView):
                     'status': balance_upload.status,
                     'generated_files': [
                         {
+                            'id': f.id,
                             'file_type': f.file_type,
                             'group_name': f.group_name,
                             'download_url': f'/api/reports/download-generated/{f.id}/',
+                            'comment': f.comment,  # Commentaire de chaque feuille maîtresse
                             'created_at': f.created_at
                         } for f in balance_upload.generated_files.all()
                     ]
                 }
                 import math
                 import pandas as pd
+                import numpy as np
                 def sanitize(obj):
                     if isinstance(obj, dict):
                         return {k: sanitize(v) for k, v in obj.items()}
                     elif isinstance(obj, list):
                         return [sanitize(v) for v in obj]
+                    elif isinstance(obj, (np.integer, np.int32, np.int64)):
+                        return int(obj)
+                    elif isinstance(obj, (np.floating, np.float32, np.float64)):
+                        if math.isnan(obj) or math.isinf(obj):
+                            return None
+                        return float(obj)
                     elif isinstance(obj, float):
                         if math.isnan(obj) or math.isinf(obj):
                             return None
                         return obj
                     elif isinstance(obj, pd.Timestamp):
                         return obj.isoformat()
+                    elif isinstance(obj, np.ndarray):
+                        return obj.tolist()
                     else:
                         return obj
                 tft_data_clean = sanitize(tft_data)
@@ -122,26 +134,34 @@ class BalanceUploadView(APIView):
                 balance_upload.error_message = str(e)
                 balance_upload.save()
                 return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            # Historique de l'upload
-            history = {
-                'id': balance_upload.id,
-                'file': balance_upload.file.url,
-                'start_date': balance_upload.start_date,
-                'end_date': balance_upload.end_date,
-                'uploaded_at': balance_upload.uploaded_at,
-                'status': balance_upload.status,
-                'generated_files': [
-                    {
-                        'file_type': f.file_type,
-                        'group_name': f.group_name,
-                        'download_url': f'/api/reports/download-generated/{f.id}/',
-                        'created_at': f.created_at
-                    } for f in balance_upload.generated_files.all()
-                ]
-            }
-            return Response({
-                'tft_data': tft_data,
-                'sheets_data': sheets_data,
-                'history': history
-            })
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class GeneratedFileCommentView(APIView):
+    """
+    API pour ajouter ou mettre à jour un commentaire sur une feuille maîtresse spécifique.
+    Accepte POST et PUT sur le même endpoint.
+    """
+    def post(self, request, generated_file_id):
+        """Ajouter ou mettre à jour un commentaire sur une feuille maîtresse"""
+        try:
+            generated_file = GeneratedFile.objects.get(id=generated_file_id)
+        except GeneratedFile.DoesNotExist:
+            return Response({'error': 'Feuille maîtresse non trouvée'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = GeneratedFileCommentSerializer(data=request.data)
+        if serializer.is_valid():
+            generated_file.comment = serializer.validated_data.get('comment')
+            generated_file.save()
+            return Response({
+                'message': 'Commentaire ajouté/mis à jour avec succès',
+                'comment': generated_file.comment,
+                'generated_file_id': generated_file.id,
+                'group_name': generated_file.group_name,
+                'file_type': generated_file.file_type
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def put(self, request, generated_file_id):
+        """Mettre à jour un commentaire (même logique que POST)"""
+        return self.post(request, generated_file_id)
+

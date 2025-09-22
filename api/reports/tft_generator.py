@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+from io import BytesIO
 
 def generate_tft_and_sheets(csv_path, start_date, end_date):
     # Contrôle de cohérence TFT
@@ -82,16 +83,7 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
             return False
         return df[df['account_number'].apply(match_prefix)]
 
-    # Génération des feuilles maîtresses
-    sheets_contents = {}
-    sheets_data = {}
-    from io import BytesIO
-    for group_name, prefixes in groups.items():
-        group_df = filter_by_prefix(df, prefixes)
-        output = BytesIO()
-        group_df.to_excel(output, index=False)
-        sheets_contents[group_name] = output.getvalue()
-        sheets_data[group_name] = group_df.to_dict(orient='records')
+    # Génération des feuilles maîtresses (sera déplacée après la définition de df_n et df_n1)
 
     # Modèle TFT SYSCOHADA (exemple simplifié, à compléter selon le guide)
     # Modèle TFT conforme au tableau fourni
@@ -297,23 +289,228 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
     tft_output = BytesIO()
     tft_df.to_excel(tft_output, index=False)
     tft_content = tft_output.getvalue()
-    # Feuilles maîtresses : solde N, N-1, variation, correspondance TFT
+    
+    # Génération des feuilles maîtresses avec structure multi-onglets
+    sheets_contents = {}
+    sheets_data = {}
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils.dataframe import dataframe_to_rows
+    
     for group_name, prefixes in groups.items():
+        # Filtrer les données par groupe et exercice
         group_n = filter_by_prefix(df_n, prefixes)
         group_n1 = filter_by_prefix(df_n1, prefixes)
-        solde_n = group_n['balance'].sum() if not group_n.empty else 0
-        solde_n1 = group_n1['balance'].sum() if not group_n1.empty else 0
-        solde_n = solde_n if solde_n is not None else 0
-        solde_n1 = solde_n1 if solde_n1 is not None else 0
-        variation = (solde_n or 0) - (solde_n1 or 0)
-        sheets_data[group_name] = {
-            'solde_n': solde_n,
-            'solde_n1': solde_n1,
-            'variation': variation,
-            'comptes_n': group_n.to_dict(orient='records'),
-            'comptes_n1': group_n1.to_dict(orient='records'),
-            'correspondance_tft': [ref for ref in tft_data if set(prefixes) & set(tft_model[[l['ref'] for l in tft_model].index(ref)]['prefixes'])]
-        }
+        
+        # Créer un nouveau classeur Excel
+        wb = openpyxl.Workbook()
+        
+        # Supprimer la feuille par défaut
+        wb.remove(wb.active)
+        
+        # Déterminer si on a deux exercices
+        has_two_exercices = not df_n1.empty and len(exercices) > 1
+        
+        if has_two_exercices:
+            # Cas 1: Deux exercices - Créer 3 onglets
+            
+            # 1. Onglet Exercice N
+            ws_n = wb.create_sheet(f"Exercice_{n}")
+            ws_n.append(['Compte', 'Libellé', 'Solde', 'Débit', 'Crédit', 'Exercice', 'Date_Creation'])
+            
+            # Remplir les données N
+            n_data = []
+            for _, row in group_n.iterrows():
+                n_data.append({
+                    'Compte': row['account_number'],
+                    'Libellé': row.get('account_name', ''),
+                    'Solde': row['balance'],
+                    'Débit': row.get('total_debit', 0),
+                    'Crédit': row.get('total_credit', 0),
+                    'Exercice': n,
+                    'Date_Creation': row.get('created_at', '')
+                })
+            
+            # Trier par numéro de compte
+            n_data.sort(key=lambda x: str(x['Compte']))
+            
+            for row_data in n_data:
+                ws_n.append([row_data['Compte'], row_data['Libellé'], row_data['Solde'], 
+                           row_data['Débit'], row_data['Crédit'], row_data['Exercice'], row_data['Date_Creation']])
+            
+            # 2. Onglet Exercice N-1
+            ws_n1 = wb.create_sheet(f"Exercice_{n_1}")
+            ws_n1.append(['Compte', 'Libellé', 'Solde', 'Débit', 'Crédit', 'Exercice', 'Date_Creation'])
+            
+            # Remplir les données N-1
+            n1_data = []
+            for _, row in group_n1.iterrows():
+                n1_data.append({
+                    'Compte': row['account_number'],
+                    'Libellé': row.get('account_name', ''),
+                    'Solde': row['balance'],
+                    'Débit': row.get('total_debit', 0),
+                    'Crédit': row.get('total_credit', 0),
+                    'Exercice': n_1,
+                    'Date_Creation': row.get('created_at', '')
+                })
+            
+            # Trier par numéro de compte
+            n1_data.sort(key=lambda x: str(x['Compte']))
+            
+            for row_data in n1_data:
+                ws_n1.append([row_data['Compte'], row_data['Libellé'], row_data['Solde'], 
+                            row_data['Débit'], row_data['Crédit'], row_data['Exercice'], row_data['Date_Creation']])
+            
+            # 3. Onglet Comparatif
+            ws_comp = wb.create_sheet(f"Comparatif_{n}_{n_1}")
+            ws_comp.append(['Compte', 'Libellé', 'Solde_N', 'Solde_N-1', 'Variation', 
+                          '%_Evolution', 'Débit_N', 'Crédit_N', 'Débit_N-1', 'Crédit_N-1', 'Date_Creation_N', 'Date_Creation_N-1', 'Exercices'])
+            
+            # Créer un dictionnaire pour faciliter la comparaison
+            n_dict = {row['Compte']: row for row in n_data}
+            n1_dict = {row['Compte']: row for row in n1_data}
+            
+            # Obtenir tous les comptes uniques
+            all_accounts = set(n_dict.keys()) | set(n1_dict.keys())
+            
+            # Remplir le tableau comparatif
+            comp_data = []
+            for account in sorted(all_accounts):
+                n_row = n_dict.get(account, {})
+                n1_row = n1_dict.get(account, {})
+                
+                # Remplacer les "trous" par 0
+                solde_n = n_row.get('Solde', 0) if n_row else 0
+                solde_n1 = n1_row.get('Solde', 0) if n1_row else 0
+                debit_n = n_row.get('Débit', 0) if n_row else 0
+                credit_n = n_row.get('Crédit', 0) if n_row else 0
+                debit_n1 = n1_row.get('Débit', 0) if n1_row else 0
+                credit_n1 = n1_row.get('Crédit', 0) if n1_row else 0
+                
+                # Calculer la variation
+                variation = solde_n - solde_n1
+                
+                # Calculer le pourcentage d'évolution
+                if solde_n1 != 0:
+                    pct_evolution = (variation / abs(solde_n1)) * 100
+                else:
+                    pct_evolution = 100 if solde_n != 0 else 0
+                
+                # Utiliser le libellé de N ou N-1 (priorité à N)
+                libelle = n_row.get('Libellé', n1_row.get('Libellé', ''))
+                
+                comp_data.append({
+                    'Compte': account,
+                    'Libellé': libelle,
+                    'Solde_N': solde_n,
+                    'Solde_N-1': solde_n1,
+                    'Variation': variation,
+                    '%_Evolution': pct_evolution,
+                    'Débit_N': debit_n,
+                    'Crédit_N': credit_n,
+                    'Débit_N-1': debit_n1,
+                    'Crédit_N-1': credit_n1,
+                    'Date_Creation_N': n_row.get('Date_Creation', ''),
+                    'Date_Creation_N-1': n1_row.get('Date_Creation', ''),
+                    'Exercices': f"{n}/{n_1}"
+                })
+            
+            # Trier par numéro de compte
+            comp_data.sort(key=lambda x: str(x['Compte']))
+            
+            for row_data in comp_data:
+                ws_comp.append([row_data['Compte'], row_data['Libellé'], row_data['Solde_N'], 
+                              row_data['Solde_N-1'], row_data['Variation'], row_data['%_Evolution'],
+                              row_data['Débit_N'], row_data['Crédit_N'], row_data['Débit_N-1'], 
+                              row_data['Crédit_N-1'], row_data['Date_Creation_N'], row_data['Date_Creation_N-1'], row_data['Exercices']])
+            
+            # Appliquer le formatage aux onglets
+            for ws in [ws_n, ws_n1, ws_comp]:
+                # En-têtes en gras
+                for cell in ws[1]:
+                    cell.font = Font(bold=True)
+                    cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+                    cell.alignment = Alignment(horizontal="center")
+                
+                # Ajuster la largeur des colonnes
+                for column in ws.columns:
+                    max_length = 0
+                    column_letter = column[0].column_letter
+                    for cell in column:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                        except:
+                            pass
+                    adjusted_width = min(max_length + 2, 50)
+                    ws.column_dimensions[column_letter].width = adjusted_width
+            
+            # Stocker les données pour l'API
+            sheets_data[group_name] = {
+                'exercice_n': n_data,
+                'exercice_n1': n1_data,
+                'comparatif': comp_data,
+                'has_two_exercices': True,
+                'exercices': [n, n_1]
+            }
+            
+        else:
+            # Cas 2: Un seul exercice - Créer 1 onglet
+            ws_n = wb.create_sheet(f"Exercice_{n}")
+            ws_n.append(['Compte', 'Libellé', 'Solde', 'Débit', 'Crédit', 'Exercice', 'Date_Creation'])
+            
+            # Remplir les données N
+            n_data = []
+            for _, row in group_n.iterrows():
+                n_data.append({
+                    'Compte': row['account_number'],
+                    'Libellé': row.get('account_name', ''),
+                    'Solde': row['balance'],
+                    'Débit': row.get('total_debit', 0),
+                    'Crédit': row.get('total_credit', 0),
+                    'Exercice': n,
+                    'Date_Creation': row.get('created_at', '')
+                })
+            
+            # Trier par numéro de compte
+            n_data.sort(key=lambda x: str(x['Compte']))
+            
+            for row_data in n_data:
+                ws_n.append([row_data['Compte'], row_data['Libellé'], row_data['Solde'], 
+                           row_data['Débit'], row_data['Crédit'], row_data['Exercice'], row_data['Date_Creation']])
+            
+            # Appliquer le formatage
+            for cell in ws_n[1]:
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+                cell.alignment = Alignment(horizontal="center")
+            
+            # Ajuster la largeur des colonnes
+            for column in ws_n.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                ws_n.column_dimensions[column_letter].width = adjusted_width
+            
+            # Stocker les données pour l'API
+            sheets_data[group_name] = {
+                'exercice_n': n_data,
+                'has_two_exercices': False,
+                'exercices': [n]
+            }
+        
+        # Sauvegarder le fichier Excel
+        output = BytesIO()
+        wb.save(output)
+        sheets_contents[group_name] = output.getvalue()
+    
     # Ajout du contrôle de cohérence au retour
     coherence = controle_coherence(tft_data)
     return tft_content, sheets_contents, tft_data, sheets_data, coherence

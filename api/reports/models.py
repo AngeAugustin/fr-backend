@@ -20,4 +20,5 @@ class GeneratedFile(models.Model):
     file_type = models.CharField(max_length=30)  # 'TFT' ou 'feuille_maitresse'
     group_name = models.CharField(max_length=50, blank=True)  # ex: 'clients', 'fournisseurs', etc.
     file_content = models.BinaryField(blank=True, null=True)  # Stockage exclusif en base
+    comment = models.TextField(blank=True, null=True, help_text="Commentaire pour cette feuille maîtresse")
     created_at = models.DateTimeField(auto_now_add=True)
