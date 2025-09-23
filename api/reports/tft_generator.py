@@ -28,8 +28,8 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
         treso_ouverture = tft_data.get('ZA', {}).get('montant', 0)
         treso_cloture = tft_data.get('ZH', {}).get('montant', 0)
         
-        variation_tft = flux_operationnels + flux_investissement + flux_financement
-        variation_treso = treso_cloture - treso_ouverture
+        variation_tft = (flux_operationnels or 0) + (flux_investissement or 0) + (flux_financement or 0)
+        variation_treso = (treso_cloture or 0) - (treso_ouverture or 0)
         
         ecart = abs(variation_tft - variation_treso)
         if ecart > 1e-2:
@@ -264,10 +264,10 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
                 comptes.extend(comptes_n.to_dict(orient='records'))
             solde_n = montant
             # Si N-1 existe, calculer, sinon mettre à zéro
-            solde_n1 = None if df_n1.empty else 0
-            variation = None if df_n1.empty else 0
-            debit_n = None
-            credit_n = None
+            solde_n1 = 0 if df_n1.empty else 0
+            variation = 0 if df_n1.empty else 0
+            debit_n = 0
+            credit_n = 0
         else:
             comptes_n = filter_by_prefix(df_n, ligne['prefixes']) if ligne['prefixes'] else pd.DataFrame()
             comptes_n1 = filter_by_prefix(df_n1, ligne['prefixes']) if ligne['prefixes'] else pd.DataFrame()
@@ -312,7 +312,7 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
                 variation = (solde_n or 0) - (solde_n1 or 0) if not df_n1.empty else 0
             debit_n = comptes_n['total_debit'].sum() if 'total_debit' in comptes_n else 0
             credit_n = comptes_n['total_credit'].sum() if 'total_credit' in comptes_n else 0
-            montant = None
+            montant = 0
             comptes = comptes_n.to_dict(orient='records')
             if ligne['formule']:
                 formule = ligne['formule']
@@ -321,7 +321,7 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
                 try:
                     montant = eval(formule)
                 except Exception:
-                    montant = None
+                    montant = 0
             else:
                 montant = variation if not df_n1.empty else solde_n
         montant_refs[ligne['ref']] = {
@@ -459,7 +459,7 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
                 credit_n1 = n1_row.get('Crédit', 0) if n1_row else 0
                 
                 # Calculer la variation
-                variation = solde_n - solde_n1
+                variation = (solde_n or 0) - (solde_n1 or 0)
                 
                 # Calculer le pourcentage d'évolution
                 if solde_n1 != 0:
@@ -582,7 +582,7 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
         sheets_contents[group_name] = output.getvalue()
     
     # Ajout du contrôle de cohérence au retour
-    coherence = controle_coherence(tft_data)
+    coherence = controle_coherence_complet(tft_data)
     return tft_content, sheets_contents, tft_data, sheets_data, coherence
 
 def generate_tft_and_sheets_from_database(financial_report_id, start_date, end_date):
@@ -637,8 +637,8 @@ def generate_tft_and_sheets_from_df(df, start_date, end_date):
         treso_ouverture = tft_data.get('ZA', {}).get('montant', 0)
         treso_cloture = tft_data.get('ZH', {}).get('montant', 0)
         
-        variation_tft = flux_operationnels + flux_investissement + flux_financement
-        variation_treso = treso_cloture - treso_ouverture
+        variation_tft = (flux_operationnels or 0) + (flux_investissement or 0) + (flux_financement or 0)
+        variation_treso = (treso_cloture or 0) - (treso_ouverture or 0)
         
         ecart = abs(variation_tft - variation_treso)
         if ecart > 1e-2:
@@ -863,10 +863,10 @@ def generate_tft_and_sheets_from_df(df, start_date, end_date):
                 comptes.extend(comptes_n.to_dict(orient='records'))
             solde_n = montant
             # Si N-1 existe, calculer, sinon mettre à zéro
-            solde_n1 = None if df_n1.empty else 0
-            variation = None if df_n1.empty else 0
-            debit_n = None
-            credit_n = None
+            solde_n1 = 0 if df_n1.empty else 0
+            variation = 0 if df_n1.empty else 0
+            debit_n = 0
+            credit_n = 0
         else:
             comptes_n = filter_by_prefix(df_n, ligne['prefixes']) if ligne['prefixes'] else pd.DataFrame()
             comptes_n1 = filter_by_prefix(df_n1, ligne['prefixes']) if ligne['prefixes'] else pd.DataFrame()
@@ -911,7 +911,7 @@ def generate_tft_and_sheets_from_df(df, start_date, end_date):
                 variation = (solde_n or 0) - (solde_n1 or 0) if not df_n1.empty else 0
             debit_n = comptes_n['total_debit'].sum() if 'total_debit' in comptes_n else 0
             credit_n = comptes_n['total_credit'].sum() if 'total_credit' in comptes_n else 0
-            montant = None
+            montant = 0
             comptes = comptes_n.to_dict(orient='records')
             if ligne['formule']:
                 formule = ligne['formule']
@@ -920,7 +920,7 @@ def generate_tft_and_sheets_from_df(df, start_date, end_date):
                 try:
                     montant = eval(formule)
                 except Exception:
-                    montant = None
+                    montant = 0
             else:
                 montant = variation if not df_n1.empty else solde_n
         montant_refs[ligne['ref']] = {
@@ -1058,7 +1058,7 @@ def generate_tft_and_sheets_from_df(df, start_date, end_date):
                 credit_n1 = n1_row.get('Crédit', 0) if n1_row else 0
                 
                 # Calculer la variation
-                variation = solde_n - solde_n1
+                variation = (solde_n or 0) - (solde_n1 or 0)
                 
                 # Calculer le pourcentage d'évolution
                 if solde_n1 != 0:
@@ -1181,5 +1181,5 @@ def generate_tft_and_sheets_from_df(df, start_date, end_date):
         sheets_contents[group_name] = output.getvalue()
     
     # Ajout du contrôle de cohérence au retour
-    coherence = controle_coherence(tft_data)
+    coherence = controle_coherence_complet(tft_data)
     return tft_content, sheets_contents, tft_data, sheets_data, coherence

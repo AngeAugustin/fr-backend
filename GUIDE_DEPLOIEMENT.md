@@ -92,6 +92,8 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+
+
 ## 📦 Installation - Méthode 2 : SQLite (Développement)
 
 ### 1-4. Identiques à la méthode PostgreSQL
@@ -284,24 +286,109 @@ Le système gère automatiquement :
 
 ## 🧪 Tests et Validation
 
-### Tests de base de données
+### 🔍 Script de test complet : `test_database_only.py`
+
+Ce script est l'outil principal de validation du système. Il teste l'ensemble du pipeline TFT sans nécessiter le serveur Django.
+
+#### **Fonctionnalités :**
+- ✅ **Test de connexion PostgreSQL** : Vérifie l'accès à la base de données
+- ✅ **Validation des données** : Compte et analyse les enregistrements `AccountData`
+- ✅ **Génération TFT** : Teste la création des tableaux et feuilles maîtresses
+- ✅ **Cohérence des calculs** : Vérifie la logique SYSCOHADA
+- ✅ **Stockage en base** : Valide l'enregistrement des fichiers générés
+
+#### **Utilisation :**
 ```bash
+# Activer l'environnement virtuel
+.venv\Scripts\activate  # Windows
+# ou
+source .venv/bin/activate  # Linux/Mac
+
+# Exécuter le test complet
 python test_database_only.py
 ```
 
-### Vérification des dividendes
-```bash
-python check_fm_dividends.py
+#### **Exemple de sortie :**
+```
+🧪 TEST DES DONNÉES ET GÉNÉRATION TFT
+==================================================
+✅ Connexion PostgreSQL: Base de données accessible
+✅ Données chargées: 4040 enregistrements, 2 financial_report_ids, Exercices: [2024, 2025]
+
+🔄 Test de génération TFT...
+📅 Exercices détectés: [2024, 2025]
+📅 Logique N-1/N: 2024-01-01 à 2025-12-31
+🔄 Génération TFT pour 32974e1a-e8e0-4784-b4e2-489d329d7eaa...
+   Période: 2024-01-01 à 2025-12-31
+✅ Génération TFT: TFT généré (15234 bytes), 8 feuilles maîtresses
+   Feuilles maîtresses générées:
+     - financier
+     - Clients-Ventes
+     - Fournisseurs-Achats
+     - personnel
+     - Impots-Taxes
+     - Immobilisations
+     - stocks
+     - capitaux_propres
+   Cohérence TFT: True
+     - Flux opérationnels: 1250000.00
+     - Flux investissement: -500000.00
+     - Flux financement: 300000.00
+
+🔄 Test de création BalanceUpload...
+✅ Fichiers générés et stockés pour BalanceUpload 15
+   - 1 fichier(s) TFT
+   - 8 feuille(s) maîtresse(s)
+
+==================================================
+🎉 TOUS LES TESTS SONT PASSÉS !
+Le système fonctionne parfaitement avec PostgreSQL.
+
+📋 Prochaines étapes:
+1. Démarrer le serveur: python manage.py runserver
+2. Tester les APIs via navigateur ou Postman
+3. Utiliser les endpoints pour l'intégration
 ```
 
-### Tests API
+#### **Cas d'usage :**
+- **Après chargement de données** : Vérifier que tout fonctionne
+- **Débogage** : Identifier les erreurs de calcul
+- **Validation** : Confirmer la cohérence des résultats
+- **Développement** : Tester les modifications du code
+
+
+### 🌐 Tests API
+
+#### **Test du serveur :**
 ```bash
+# Démarrer le serveur
+python manage.py runserver
+
 # Tester l'API avec curl
-curl -X GET http://localhost:8000/api/reports/tft/
+curl -X GET http://localhost:8000/api/reports/balance-history/
 
-# Ou utiliser Postman
-# GET http://localhost:8000/api/reports/tft/
+# Tester le traitement automatique
+curl -X POST http://localhost:8000/api/reports/auto-process/
 ```
+
+#### **Test avec Postman :**
+- **GET** `http://localhost:8000/api/reports/balance-history/` - Historique des traitements
+- **POST** `http://localhost:8000/api/reports/auto-process/` - Traitement automatique
+- **GET** `http://localhost:8000/api/reports/download-generated/{id}/` - Télécharger un fichier
+
+### 📊 Surveillance en temps réel : `monitor_realtime_data.py`
+
+Script de surveillance pour le traitement automatique des nouvelles données.
+
+```bash
+python monitor_realtime_data.py
+```
+
+**Fonctionnalités :**
+- Surveille les nouvelles données `AccountData`
+- Déclenche automatiquement le traitement
+- Logs détaillés des opérations
+- Gestion des erreurs
 
 ## 🌐 Endpoints API
 
