@@ -145,6 +145,13 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Configuration des logs pour le traitement automatique
+# Configuration de logging robuste
+import os
+
+# Créer le dossier logs s'il n'existe pas
+LOGS_DIR = BASE_DIR / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -161,8 +168,10 @@ LOGGING = {
     'handlers': {
         'file': {
             'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': 'logs/auto_processing.log',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'auto_processing.log',
+            'maxBytes': 1024*1024*5,  # 5 MB
+            'backupCount': 5,
             'formatter': 'verbose',
         },
         'console': {
