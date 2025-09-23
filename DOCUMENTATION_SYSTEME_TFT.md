@@ -191,20 +191,211 @@ tft_model = [
 ]
 ```
 
-## 📋 Feuilles maîtresses
+### Détail des groupes de comptes
 
-### Groupes de comptes
+#### **Comptes de Bilan**
+
+**1. Capitaux Propres (10x)**
+- 101 : Capital social
+- 103 : Primes liées au capital social  
+- 104 : Écarts d'évaluation
+- 105 : Écarts de réévaluation
+- 106 : Réserves (légale, statutaire, facultative)
+- 108 : Compte de l'exploitant
+- 109 : Actionnaires, capital souscrit non appelé
+- 110 : Report à nouveau (débiteur/créditeur)
+- 130 : Résultat en instance d'affectation
+- 131 : Résultat net de l'exercice
+
+**2. Immobilisations Incorporelles (20x)**
+- 201 : Frais de recherche et de développement
+- 203 : Logiciels
+- 204 : Brevets, licences, concessions et droits similaires
+- 205 : Fonds commercial et droit au bail
+- 208 : Autres immobilisations incorporelles
+
+**3. Immobilisations Corporelles (21x)**
+- 211 : Terrains
+- 212 : Agencements et aménagements de terrains
+- 213 : Bâtiments
+- 214 : Constructions sur sol d'autrui
+- 215 : Installations techniques, matériel et outillage
+- 218 : Autres immobilisations corporelles
+- 237 : Immobilisations corporelles en cours
+- 238 : Avances et acomptes versés sur commandes d'immobilisations corporelles
+
+**4. Immobilisations Financières (25x)**
+- 251 : Titres de participation
+- 256 : Autres formes de participation
+- 261 : Titres immobilisés (droit de propriété)
+- 262 : Titres immobilisés (droit de créance)
+- 264 : Prêts et créances sur l'État
+- 265 : Prêts et créances sur les collectivités publiques
+- 266 : Prêts et créances sur les entreprises liées
+- 267 : Prêts et créances sur les entreprises avec lesquelles il existe un lien de participation
+- 268 : Autres prêts et créances financières
+- 269 : Versements restant à effectuer sur titres non libérés
+- 274 : Créances immobilisées
+- 275 : Dépôts et cautionnements versés
+
+**5. Stocks (3xx)**
+- 311 : Marchandises
+- 321 : Matières premières
+- 322 : Matières et fournitures consommables
+- 323 : Emballages
+- 331 : Produits en cours
+- 335 : Produits et travaux finis
+- 341 : Études en cours
+- 345 : Prestations de services en cours
+- 351 : Produits résiduels
+- 358 : Déchets et rebuts
+- 39x : Dépréciations des stocks
+
+**6. Créances Clients (41x)**
+- 411 : Clients
+- 416 : Clients douteux
+- 417 : Créances sur travaux non encore facturables
+- 418 : Clients - Produits non encore livrés
+- 419 : Clients créditeurs, avances et acomptes reçus
+- 491 : Dépréciations des comptes clients
+
+**7. Dettes Fournisseurs (40x)**
+- 401 : Fournisseurs de stocks et services locaux
+- 402 : Fournisseurs de stocks et services dans la région
+- 403 : Fournisseurs de stocks et services hors région
+- 408 : Fournisseurs, factures non parvenues
+- 409 : Fournisseurs débiteurs, avances et acomptes versés
+
+**8. Personnel (42x)**
+- 421 : Personnel, avances et acomptes
+- 422 : Personnel, rémunérations dues
+- 423 : Personnel, oppositions
+- 424 : Personnel, œuvres sociales internes
+- 425 : Personnel, autres créditeurs
+- 43x : Organismes sociaux (CNSS, etc.)
+- 447 : Personnel, charges à payer
+
+**9. Impôts & Taxes (44x)**
+- 441 : État et collectivités publiques, subventions à recevoir
+- 442 : État, impôts et taxes recouvrables sur des tiers
+- 443 : État, TVA facturée sur ventes
+- 444 : État, TVA due ou crédit de TVA
+- 445 : État, TVA récupérable sur achats
+- 446 : État, TVA récupérable sur immobilisations
+- 447 : État, impôts retenus à la source
+- 448 : État, charges à payer et produits à recevoir
+- 449 : État, créditeurs et débiteurs divers
+
+**10. Financier (5xx)**
+- 501 : Titres de placement
+- 502 : Actions propres
+- 503 : Obligations et bons du Trésor
+- 504 : Bons de caisse et bons de trésor
+- 505 : Titres négociables hors région
+- 506 : Intérêts courus sur titres de placement
+- 521 : Banques locales
+- 522 : Banques autres États de l'UEMOA
+- 523 : Banques autres États de l'UMOA
+- 524 : Banques hors UMOA
+- 531 : Chèques postaux
+- 532 : Trésor public
+- 533 : Régies d'avances
+- 541 : Caisse siège social
+- 542 : Caisse succursale A, B, C...
+- 58x : Virements internes
+- 59x : Dépréciations
+
+**11. Provisions R&C (14x)**
+- 141 : Provisions pour risques
+- 142 : Provisions pour charges
+- 143 : Provisions pour pensions et obligations similaires
+- 148 : Autres provisions pour charges
+- 149 : Provisions pour dépréciation des comptes de la classe 1
+
+#### **Comptes de Charges (6xx)**
+
+**12. Charges Achats (60x)**
+- 601 : Achats de marchandises dans la région
+- 602 : Achats de marchandises hors région
+- 603 : Variations de stocks de marchandises
+- 604 : Achats stockés de matières premières et fournitures liées
+- 605 : Autres achats stockés
+- 606 : Achats non stockés de matières et fournitures
+- 607 : Achats de travaux, études et prestations de service
+- 608 : Achats d'emballages récupérables
+
+**13. Charges Personnel (66x)**
+- 661 : Rémunérations directes versées au personnel national
+- 662 : Rémunérations directes versées au personnel non national
+- 663 : Indemnités forfaitaires versées au personnel
+- 664 : Charges sociales sur rémunérations du personnel national
+- 665 : Charges sociales sur rémunérations du personnel non national
+- 666 : Rémunérations transférées pour compte de tiers
+- 667 : Rémunérations de l'exploitant individuel
+- 668 : Autres charges sociales
+
+**14. Charges Impôts (63x, 69x)**
+- 631 : Impôts et taxes directs
+- 633 : Impôts, taxes et droits de douane
+- 635 : Autres impôts et taxes
+- 695 : Impôt sur le résultat
+
+#### **Comptes de Produits (7xx)**
+
+**15. Produits Ventes (70x)**
+- 701 : Ventes de marchandises dans la région
+- 702 : Ventes de marchandises hors région
+- 703 : Ventes de produits fabriqués dans la région
+- 704 : Ventes de produits fabriqués hors région
+- 705 : Travaux facturés
+- 706 : Services vendus dans la région
+- 707 : Services vendus hors région
+- 708 : Produits des activités annexes
+- 781 : Transfert de charges d'exploitation
+
+### Groupes de comptes - Liste exhaustive SYSCOHADA
 ```python
 groups = {
-    'financier': ['431', '521'],
-    'Clients-Ventes': ['411', '419', '445', '622', '628', '631', '661', '758'],
-    'Fournisseurs-Achats': ['283', '284', '401', '409', '422', '445', '447', '476', '605', '633', '637', '641', '658', '661', '664', '681'],
-    'personnel': ['422', '447', '633', '641', '661', '664'],
-    'Impots-Taxes': ['447', '641'],
-    'Immobilisations': ['244', '624'],
-    'stocks': ['605'],
-    'capitaux_propres': ['121'],
-    'Provisions R-C': ['121'],
+    # CAPITAUX PROPRES
+    'capitaux_propres': ['101', '103', '104', '105', '106', '108', '109', '110', '130', '131'],
+    
+    # IMMOBILISATIONS INCORPORELLES
+    'immobilisations_incorporelles': ['201', '203', '204', '205', '208'],
+    
+    # IMMOBILISATIONS CORPORELLES
+    'immobilisations_corporelles': ['211', '212', '213', '214', '215', '218', '237', '238'],
+    
+    # IMMOBILISATIONS FINANCIÈRES
+    'immobilisations_financieres': ['251', '256', '261', '262', '264', '265', '266', '267', '268', '269', '274', '275'],
+    
+    # STOCKS
+    'stocks': ['311', '321', '322', '323', '331', '335', '341', '345', '351', '358', '39'],
+    
+    # CRÉANCES CLIENTS
+    'clients_ventes': ['411', '416', '417', '418', '419', '491'],
+    
+    # DETTES FOURNISSEURS
+    'fournisseurs_achats': ['401', '402', '403', '408', '409'],
+    
+    # PERSONNEL
+    'personnel': ['421', '422', '423', '424', '425', '43', '447'],
+    
+    # IMPÔTS & TAXES
+    'impots_taxes': ['441', '442', '443', '444', '445', '446', '447', '448', '449'],
+    
+    # FINANCIER
+    'financier': ['501', '502', '503', '504', '505', '506', '521', '522', '523', '524', '531', '532', '533', '541', '542', '58', '59'],
+    
+    # PROVISIONS R&C
+    'provisions_rc': ['141', '142', '143', '148', '149'],
+    
+    # COMPTES DE CHARGES
+    'charges_achats': ['601', '602', '603', '604', '605', '606', '607', '608'],
+    'charges_personnel': ['661', '662', '663', '664', '665', '666', '667', '668'],
+    'charges_impots': ['631', '633', '635', '695'],
+    
+    # COMPTES DE PRODUITS
+    'produits_ventes': ['701', '702', '703', '704', '705', '706', '707', '708', '781'],
 }
 ```
 

@@ -46,16 +46,48 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
         df['exercice'] = df['created_at'].dt.year
 
     # Mapping SYSCOHADA détaillé
+    # Mapping SYSCOHADA détaillé - Liste exhaustive des comptes par groupe
     groups = {
-        'financier': ['431', '521'],
-        'Clients-Ventes': ['411', '419', '445', '622', '628', '631', '661', '758'],
-        'Fournisseurs-Achats': ['283', '284', '401', '409', '422', '445', '447', '476', '605', '633', '637', '641', '658', '661', '664', '681'],
-        'personnel': ['422', '447', '633', '641', '661', '664'],
-        'Impots-Taxes': ['447', '641'],
-        'Immobilisations': ['244', '624'],
-        'stocks': ['605'],
-        'capitaux_propres': ['121'],
-        'Provisions R-C': ['121'],
+        # CAPITAUX PROPRES
+        'capitaux_propres': ['101', '103', '104', '105', '106', '108', '109', '110', '130', '131'],
+        
+        # IMMOBILISATIONS INCORPORELLES
+        'immobilisations_incorporelles': ['201', '203', '204', '205', '208'],
+        
+        # IMMOBILISATIONS CORPORELLES
+        'immobilisations_corporelles': ['211', '212', '213', '214', '215', '218', '237', '238'],
+        
+        # IMMOBILISATIONS FINANCIÈRES
+        'immobilisations_financieres': ['251', '256', '261', '262', '264', '265', '266', '267', '268', '269', '274', '275'],
+        
+        # STOCKS
+        'stocks': ['311', '321', '322', '323', '331', '335', '341', '345', '351', '358', '39'],
+        
+        # CRÉANCES CLIENTS
+        'clients_ventes': ['411', '416', '417', '418', '419', '491'],
+        
+        # DETTES FOURNISSEURS
+        'fournisseurs_achats': ['401', '402', '403', '408', '409'],
+        
+        # PERSONNEL
+        'personnel': ['421', '422', '423', '424', '425', '43', '447'],
+        
+        # IMPÔTS & TAXES
+        'impots_taxes': ['441', '442', '443', '444', '445', '446', '447', '448', '449'],
+        
+        # FINANCIER
+        'financier': ['501', '502', '503', '504', '505', '506', '521', '522', '523', '524', '531', '532', '533', '541', '542', '58', '59'],
+        
+        # PROVISIONS R&C
+        'provisions_rc': ['141', '142', '143', '148', '149'],
+        
+        # COMPTES DE CHARGES
+        'charges_achats': ['601', '602', '603', '604', '605', '606', '607', '608'],
+        'charges_personnel': ['661', '662', '663', '664', '665', '666', '667', '668'],
+        'charges_impots': ['631', '633', '635', '695'],
+        
+        # COMPTES DE PRODUITS
+        'produits_ventes': ['701', '702', '703', '704', '705', '706', '707', '708', '781'],
     }
 
     tft_mapping = {
@@ -574,16 +606,48 @@ def generate_tft_and_sheets_from_df(df, start_date, end_date):
         df['exercice'] = df['created_at'].dt.year
 
     # Mapping SYSCOHADA détaillé
+    # Mapping SYSCOHADA détaillé - Liste exhaustive des comptes par groupe
     groups = {
-        'financier': ['431', '521'],
-        'Clients-Ventes': ['411', '419', '445', '622', '628', '631', '661', '758'],
-        'Fournisseurs-Achats': ['283', '284', '401', '409', '422', '445', '447', '476', '605', '633', '637', '641', '658', '661', '664', '681'],
-        'personnel': ['422', '447', '633', '641', '661', '664'],
-        'Impots-Taxes': ['447', '641'],
-        'Immobilisations': ['244', '624'],
-        'stocks': ['605'],
-        'capitaux_propres': ['121'],
-        'Provisions R-C': ['121'],
+        # CAPITAUX PROPRES
+        'capitaux_propres': ['101', '103', '104', '105', '106', '108', '109', '110', '130', '131'],
+        
+        # IMMOBILISATIONS INCORPORELLES
+        'immobilisations_incorporelles': ['201', '203', '204', '205', '208'],
+        
+        # IMMOBILISATIONS CORPORELLES
+        'immobilisations_corporelles': ['211', '212', '213', '214', '215', '218', '237', '238'],
+        
+        # IMMOBILISATIONS FINANCIÈRES
+        'immobilisations_financieres': ['251', '256', '261', '262', '264', '265', '266', '267', '268', '269', '274', '275'],
+        
+        # STOCKS
+        'stocks': ['311', '321', '322', '323', '331', '335', '341', '345', '351', '358', '39'],
+        
+        # CRÉANCES CLIENTS
+        'clients_ventes': ['411', '416', '417', '418', '419', '491'],
+        
+        # DETTES FOURNISSEURS
+        'fournisseurs_achats': ['401', '402', '403', '408', '409'],
+        
+        # PERSONNEL
+        'personnel': ['421', '422', '423', '424', '425', '43', '447'],
+        
+        # IMPÔTS & TAXES
+        'impots_taxes': ['441', '442', '443', '444', '445', '446', '447', '448', '449'],
+        
+        # FINANCIER
+        'financier': ['501', '502', '503', '504', '505', '506', '521', '522', '523', '524', '531', '532', '533', '541', '542', '58', '59'],
+        
+        # PROVISIONS R&C
+        'provisions_rc': ['141', '142', '143', '148', '149'],
+        
+        # COMPTES DE CHARGES
+        'charges_achats': ['601', '602', '603', '604', '605', '606', '607', '608'],
+        'charges_personnel': ['661', '662', '663', '664', '665', '666', '667', '668'],
+        'charges_impots': ['631', '633', '635', '695'],
+        
+        # COMPTES DE PRODUITS
+        'produits_ventes': ['701', '702', '703', '704', '705', '706', '707', '708', '781'],
     }
 
     tft_mapping = {
