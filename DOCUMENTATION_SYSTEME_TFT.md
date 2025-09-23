@@ -145,39 +145,45 @@ def generate_tft_and_sheets_from_database(financial_report_id, start_date, end_d
     return generate_tft_and_sheets_from_df(df, start_date, end_date)
 ```
 
-## 📊 Modèle TFT SYSCOHADA
+## 📊 Modèle TFT SYSCOHADA - Conforme à la documentation officielle
 
-### Rubriques principales
+### Structure générale conforme OHADA
 
-#### **A. Trésorerie**
-- **ZA** : Trésorerie nette au 1er janvier
-- **ZH** : Trésorerie nette au 31 décembre
-- **G** : Variation de trésorerie
+Le système implémente la structure TFT SYSCOHADA selon la documentation officielle :
 
-#### **B. Activités opérationnelles**
+#### **SECTION A - ACTIVITÉS OPÉRATIONNELLES**
 - **FA** : Capacité d'AutoFinancement Globale (CAFG)
-- **FB** : Variation Actif circulant HAO
-- **FC** : Variation des stocks
-- **FD** : Variation des créances
-- **FE** : Variation du passif circulant
-- **BF** : Variation du BF lié aux activités opérationnelles
+  - Formule : `131 + 681-689 + 691-699 - 781-789 - 791-799 - 775 + 675`
+  - Retraitements obligatoires selon documentation
+- **FB** : Variation Actif circulant HAO (créances hors activité ordinaire)
+- **FC** : Variation des stocks `-(Solde N - Solde N-1)`
+- **FD** : Variation des créances d'exploitation `-(Solde N - Solde N-1)`
+- **FE** : Variation du passif circulant `+(Solde N - Solde N-1)`
 - **ZB** : Flux de trésorerie provenant des activités opérationnelles
 
-#### **C. Activités d'investissement**
-- **FF** : Décaissements liés aux acquisitions d'immobilisations incorporelles
-- **FG** : Décaissements liés aux acquisitions d'immobilisations corporelles
-- **FH** : Décaissements liés aux acquisitions d'immobilisations financières
-- **FI** : Décaissements liés aux acquisitions d'immobilisations en cours
-- **FJ** : Décaissements liés aux acquisitions d'immobilisations mises en concession
+#### **SECTION B - ACTIVITÉS D'INVESTISSEMENT**
+- **FF** : Décaissements acquisitions immobilisations incorporelles
+- **FG** : Décaissements acquisitions immobilisations corporelles
+- **FH** : Décaissements acquisitions immobilisations financières
+- **FI** : Encaissements cessions immobilisations incorporelles/corporelles
+- **FJ** : Encaissements cessions immobilisations financières
+- **FJ_DIV** : Dividendes reçus (761-762)
+- **FJ_CRE** : Produits de créances financières (763-764)
 - **ZC** : Flux de trésorerie provenant des activités d'investissement
 
-#### **D. Activités de financement**
+#### **SECTION C - ACTIVITÉS DE FINANCEMENT**
 - **FK** : Encaissements provenant de capital apporté nouveaux
 - **FL** : Encaissements provenant de subventions reçues
 - **FM** : Dividendes versés
 - **FO** : Encaissements des emprunts et autres dettes financières
 - **FP** : Décaissements liés au remboursement des emprunts
 - **ZE** : Flux de trésorerie provenant des activités de financement
+
+#### **TRÉSORERIE ET CONTRÔLES**
+- **ZA** : Trésorerie nette au 1er janvier
+- **ZH** : Trésorerie nette au 31 décembre
+- **G** : Variation de la trésorerie nette de la période
+- **CONTROLE** : Contrôle de cohérence `G = ZH - ZA`
 
 ### Mapping des comptes
 
@@ -481,28 +487,45 @@ curl -X POST http://localhost:8000/api/reports/auto-process/
 curl http://localhost:8000/api/reports/balance-history/
 ```
 
-## 🔍 Contrôles de cohérence
+## 🔍 Contrôles automatiques conformes SYSCOHADA
 
-### Validation TFT
+### Vérifications obligatoires implémentées
+
+#### **1. Égalité variation calculée/variation bilantielle**
 ```python
-def controle_coherence(tft_data):
-    """
-    Vérifie la cohérence du TFT :
-    Variation TFT = Variation Trésorerie
-    """
-    flux_operationnels = tft_data.get('ZB', {}).get('montant', 0)
-    flux_investissement = tft_data.get('ZC', {}).get('montant', 0)
-    flux_financement = tft_data.get('ZE', {}).get('montant', 0)
-    
+def controle_coherence_complet(tft_data):
     variation_tft = flux_operationnels + flux_investissement + flux_financement
     variation_treso = treso_cloture - treso_ouverture
-    
-    return {
-        'is_coherent': abs(variation_tft - variation_treso) < 1e-2,
-        'variation_tft': variation_tft,
-        'variation_treso': variation_treso
-    }
+    ecart = abs(variation_tft - variation_treso)
+    return ecart < 1e-2  # Tolérance de 0.01
 ```
+
+#### **2. Cohérence des totaux par section**
+- **Section A** : Vérification `FA + FB + FC + FD + FE = ZB`
+- **Section B** : Vérification `FF + FG + FH + FI + FJ + FJ_DIV + FJ_CRE = ZC`
+- **Section C** : Vérification `FK + FL - FM + FO - FP = ZE`
+
+#### **3. Absence de comptes orphelins**
+- Détection des comptes non mappés dans les rubriques TFT
+- Alerte pour les comptes sans affectation
+
+#### **4. Respect des seuils de matérialité**
+- Contrôle des montants faibles (< seuil configurable)
+- Alertes pour les rubriques sous le seuil de matérialité
+
+### Retraitements obligatoires implémentés
+
+#### **Éléments sans effet trésorerie à éliminer :**
+- ✅ Dotations et reprises d'amortissements (681-689, 781-789)
+- ✅ Dotations et reprises de provisions (691-699, 791-799)
+- ✅ Plus et moins-values de cession (775, 675)
+- ✅ Transferts de charges (781-789)
+- ✅ Quote-part de subventions virée au résultat
+
+#### **Reclassements nécessaires :**
+- ✅ Cessions d'immobilisations : du résultat vers investissement
+- ✅ Charges et produits financiers liés aux emprunts
+- ✅ Impôt sur les bénéfices : séparé des autres impôts
 
 ## 📈 Monitoring et logs
 

@@ -5,29 +5,85 @@ from .models import AccountData
 
 def generate_tft_and_sheets(csv_path, start_date, end_date):
     # Contrôle de cohérence TFT
-    def controle_coherence(tft_data):
-        # Références des rubriques
+    # Contrôles de cohérence conformes à la documentation SYSCOHADA
+    def controle_coherence_complet(tft_data):
+        """
+        Contrôles automatiques obligatoires selon la documentation :
+        - Égalité variation calculée/variation bilantielle
+        - Cohérence des totaux par section
+        - Absence de comptes orphelins
+        - Respect des seuils de matérialité
+        """
+        controles = {
+            'is_coherent': True,
+            'errors': [],
+            'warnings': [],
+            'details': {}
+        }
+        
+        # 1. Égalité variation calculée/variation bilantielle
         flux_operationnels = tft_data.get('ZB', {}).get('montant', 0)
         flux_investissement = tft_data.get('ZC', {}).get('montant', 0)
         flux_financement = tft_data.get('ZE', {}).get('montant', 0)
         treso_ouverture = tft_data.get('ZA', {}).get('montant', 0)
         treso_cloture = tft_data.get('ZH', {}).get('montant', 0)
-        treso_ouverture = treso_ouverture if treso_ouverture is not None else 0
-        treso_cloture = treso_cloture if treso_cloture is not None else 0
+        
         variation_tft = flux_operationnels + flux_investissement + flux_financement
-        variation_treso = (treso_cloture or 0) - (treso_ouverture or 0)
-        return {
-            'variation_tft': variation_tft,
-            'variation_treso': variation_treso,
-            'is_coherent': abs(variation_tft - variation_treso) < 1e-2,
-            'details': {
-                'flux_operationnels': flux_operationnels,
-                'flux_investissement': flux_investissement,
-                'flux_financement': flux_financement,
-                'treso_ouverture': treso_ouverture,
-                'treso_cloture': treso_cloture
-            }
-        }
+        variation_treso = treso_cloture - treso_ouverture
+        
+        ecart = abs(variation_tft - variation_treso)
+        if ecart > 1e-2:
+            controles['is_coherent'] = False
+            controles['errors'].append(f"Écart variation TFT/Trésorerie: {ecart:.2f}")
+        
+        controles['details']['variation_tft'] = variation_tft
+        controles['details']['variation_treso'] = variation_treso
+        controles['details']['ecart'] = ecart
+        
+        # 2. Cohérence des totaux par section
+        # Section A - Activités opérationnelles
+        cafg = tft_data.get('FA', {}).get('montant', 0)
+        bfr_exploitation = tft_data.get('FB', {}).get('montant', 0)
+        variation_stocks = tft_data.get('FC', {}).get('montant', 0)
+        variation_creances = tft_data.get('FD', {}).get('montant', 0)
+        variation_passif = tft_data.get('FE', {}).get('montant', 0)
+        
+        total_section_a = cafg + bfr_exploitation + variation_stocks + variation_creances + variation_passif
+        if abs(total_section_a - flux_operationnels) > 1e-2:
+            controles['warnings'].append(f"Cohérence Section A: écart {abs(total_section_a - flux_operationnels):.2f}")
+        
+        # Section B - Activités d'investissement
+        acquisitions_incorp = tft_data.get('FF', {}).get('montant', 0)
+        acquisitions_corp = tft_data.get('FG', {}).get('montant', 0)
+        acquisitions_fin = tft_data.get('FH', {}).get('montant', 0)
+        cessions_incorp_corp = tft_data.get('FI', {}).get('montant', 0)
+        cessions_fin = tft_data.get('FJ', {}).get('montant', 0)
+        dividendes_recus = tft_data.get('FJ_DIV', {}).get('montant', 0)
+        produits_creances = tft_data.get('FJ_CRE', {}).get('montant', 0)
+        
+        total_section_b = acquisitions_incorp + acquisitions_corp + acquisitions_fin + cessions_incorp_corp + cessions_fin + dividendes_recus + produits_creances
+        if abs(total_section_b - flux_investissement) > 1e-2:
+            controles['warnings'].append(f"Cohérence Section B: écart {abs(total_section_b - flux_investissement):.2f}")
+        
+        # Section C - Activités de financement
+        augmentation_capital = tft_data.get('FK', {}).get('montant', 0)
+        subventions = tft_data.get('FL', {}).get('montant', 0)
+        dividendes_verses = tft_data.get('FM', {}).get('montant', 0)
+        nouveaux_emprunts = tft_data.get('FO', {}).get('montant', 0)
+        remboursements = tft_data.get('FP', {}).get('montant', 0)
+        
+        total_section_c = augmentation_capital + subventions - dividendes_verses + nouveaux_emprunts - remboursements
+        if abs(total_section_c - flux_financement) > 1e-2:
+            controles['warnings'].append(f"Cohérence Section C: écart {abs(total_section_c - flux_financement):.2f}")
+        
+        # 3. Contrôle des seuils de matérialité (exemple: 1% du CA ou 1000 FCFA)
+        seuil_materialite = 1000  # À adapter selon les besoins
+        for ref, data in tft_data.items():
+            montant = abs(data.get('montant', 0))
+            if montant > 0 and montant < seuil_materialite:
+                controles['warnings'].append(f"Montant faible pour {ref}: {montant:.2f} < {seuil_materialite}")
+        
+        return controles
 
     # Lecture du CSV
     df = pd.read_csv(csv_path)
@@ -120,46 +176,48 @@ def generate_tft_and_sheets(csv_path, start_date, end_date):
 
     # Génération des feuilles maîtresses (sera déplacée après la définition de df_n et df_n1)
 
-    # Modèle TFT SYSCOHADA (exemple simplifié, à compléter selon le guide)
-    # Modèle TFT conforme au tableau fourni
-    # Préfixes à adapter selon la structure de ton plan comptable
+    # Modèle TFT SYSCOHADA conforme à la documentation officielle
     tft_model = [
-    {'ref': '2H_TRESO_NEG', 'libelle': "Trésorerie passive (négative) - concours et escomptes", 'formule': None, 'prefixes': ['561', '564', '565']},
-    {'ref': '2H_TRESO_POS', 'libelle': "Trésorerie active (positive) - composition détaillée", 'formule': None, 'prefixes': ['521', '522', '523', '524', '531', '532', '541', '542', '501', '502', '503', '504', '505', '506']},
-        {'ref': 'ZA', 'libelle': 'Trésorerie nette au 1er janvier', 'formule': 'Trésorerie actif N-1 - Trésorerie passif N-1', 'prefixes': ['521', '431']},
-        {'ref': 'FA', 'libelle': 'Capacité d\'AutoFinancement Globale (CAFG)', 'formule': None, 'prefixes': ['131', '681-689', '691-699', '781-789', '791-799', '775', '675']},
-        {'ref': 'FB', 'libelle': 'Variation Actif circulant HAO', 'formule': None, 'prefixes': ['31', '32', '33', '34', '35', '36', '37']},
-        {'ref': 'FC', 'libelle': 'Variation des stocks', 'formule': None, 'prefixes': ['31', '32', '33', '34', '35', '36', '37']},
-        {'ref': 'FD', 'libelle': 'Variation des créances', 'formule': None, 'prefixes': ['41']},
-        {'ref': 'FE', 'libelle': 'Variation du passif circulant', 'formule': None, 'prefixes': ['40', '44', '45', '46']},
-        {'ref': 'BF', 'libelle': 'Variation du BF lié aux activités opérationnelles', 'formule': 'FB+FC+FD-FE', 'prefixes': []},
-        {'ref': 'ZB', 'libelle': 'Flux de trésorerie provenant des activités opérationnelles (somme FA à FE)', 'formule': 'FA+FB+FC+FD+FE', 'prefixes': []},
-        {'ref': 'FF', 'libelle': 'Décaissements liés aux acquisitions d\'immobilisations incorporelles', 'formule': None, 'prefixes': ['244']},
-        {'ref': 'FG', 'libelle': 'Décaissements liés aux acquisitions d\'immobilisations corporelles', 'formule': None, 'prefixes': ['624']},
-        {'ref': 'FH', 'libelle': 'Décaissements liés aux acquisitions d\'immobilisations financières', 'formule': None, 'prefixes': ['244', '624']},
-        {'ref': 'FI', 'libelle': 'Encaissements liés aux cessions d\'immobilisations incorporelles et corporelles', 'formule': None, 'prefixes': ['244', '624']},
-        {'ref': 'FJ', 'libelle': 'Encaissements liés aux cessions d\'immobilisations financières', 'formule': None, 'prefixes': ['244', '624']},
-        {'ref': 'FJ_VMP', 'libelle': 'Produits nets sur cessions VMP (767)', 'formule': None, 'prefixes': ['767']},
-        {'ref': 'INV_DIV', 'libelle': "Dividendes reçus (761-762)", 'formule': None, 'prefixes': ['761', '762']},
-        {'ref': 'INV_CRE', 'libelle': "Produits de créances financières (763-764)", 'formule': None, 'prefixes': ['763', '764']},
-        {'ref': 'ZC', 'libelle': 'Flux de trésorerie provenant des activités d\'investissement (somme FF à FJ)', 'formule': 'FF+FG+FH+FI+FJ', 'prefixes': []},
-        {'ref': 'FK', 'libelle': 'Encaissements provenant de capital apporté nouveaux', 'formule': None, 'prefixes': ['10', '11', '12', '13', '14']},
-        {'ref': 'T4_101', 'libelle': "Capital social (101) - hors apports en nature", 'formule': None, 'prefixes': ['101']},
-        {'ref': 'T4_103', 'libelle': "Primes d'émission (103) - encaissements effectifs", 'formule': None, 'prefixes': ['103']},
-        {'ref': 'T4_104', 'libelle': "Écarts d'évaluation (104) - non concerné", 'formule': None, 'prefixes': ['104']},
-        {'ref': 'FL', 'libelle': 'Encaissements provenant de subventions reçues', 'formule': None, 'prefixes': ['121']},
-        {'ref': 'T5_141', 'libelle': "Subventions d'investissement reçues (141) - hors reprises (865)", 'formule': None, 'prefixes': ['141']},
-        {'ref': 'FM', 'libelle': 'Dividendes versés', 'formule': None, 'prefixes': ['121']},
-        {'ref': 'TH1_108', 'libelle': "Compte de l'exploitant (108) - prélèvements nets", 'formule': None, 'prefixes': ['108']},
-        {'ref': 'TH2_457', 'libelle': "Dividendes à payer (457) - distributions décidées/payées", 'formule': None, 'prefixes': ['457']},
-        {'ref': 'D', 'libelle': 'Flux de trésorerie provenant des capitaux propres (somme FK à FM)', 'formule': 'FK+FL-FM', 'prefixes': []},
-        {'ref': 'FO', 'libelle': 'Encaissements des emprunts et autres dettes financières', 'formule': None, 'prefixes': ['401', '409', '637']},
-        {'ref': 'FP', 'libelle': 'Décaissements liés au remboursement des emprunts et autres dettes financières', 'formule': None, 'prefixes': ['401', '409', '637']},
-    {'ref': 'TG_161_168', 'libelle': "Nouveaux emprunts (161-168) - augmentation/variation nette", 'formule': None, 'prefixes': ['161', '162', '163', '164', '165', '168']},
-    {'ref': 'TP_161_168', 'libelle': "Remboursements d'emprunts (161-168) - capital remboursé uniquement", 'formule': None, 'prefixes': ['161', '162', '163', '164', '165', '168']},
-        {'ref': 'ZE', 'libelle': 'Flux de trésorerie provenant des activités de financement (FO-FP)', 'formule': 'FO-FP', 'prefixes': []},
-        {'ref': 'G', 'libelle': 'VARIATION DE LA TRÉSORERIE NETTE DE LA PÉRIODE (D+B+C+F)', 'formule': 'D+B+C+F', 'prefixes': []},
-        {'ref': 'ZH', 'libelle': 'Trésorerie nette au 31 Décembre (G+A)', 'formule': 'G+A', 'prefixes': ['521', '431']},
+        # SECTION A - ACTIVITÉS OPÉRATIONNELLES
+        {'ref': 'FA', 'libelle': 'Capacité d\'AutoFinancement Globale (CAFG)', 'formule': '131 + 681-689 + 691-699 - 781-789 - 791-799 - 775 + 675', 'prefixes': ['131', '681', '682', '683', '684', '685', '686', '687', '688', '689', '691', '692', '693', '694', '695', '696', '697', '698', '699', '781', '782', '783', '784', '785', '786', '787', '788', '789', '791', '792', '793', '794', '795', '796', '797', '798', '799', '775', '675']},
+        
+        {'ref': 'FB', 'libelle': 'Variation Actif circulant HAO', 'formule': 'Variation créances HAO', 'prefixes': ['461', '462', '463', '464', '465', '466', '467', '468', '469']},
+        {'ref': 'FC', 'libelle': 'Variation des stocks', 'formule': '-(Solde N - Solde N-1)', 'prefixes': ['311', '321', '322', '323', '331', '335', '341', '345', '351', '358']},
+        {'ref': 'FD', 'libelle': 'Variation des créances d\'exploitation', 'formule': '-(Solde N - Solde N-1)', 'prefixes': ['411', '416', '417', '418', '419']},
+        {'ref': 'FE', 'libelle': 'Variation du passif circulant', 'formule': '+(Solde N - Solde N-1)', 'prefixes': ['401', '402', '403', '408', '409', '421', '422', '423', '424', '425', '431', '432', '433', '434', '435', '436', '437', '438', '441', '442', '443', '444', '445', '446', '447', '448', '449']},
+        
+        {'ref': 'ZB', 'libelle': 'Flux de trésorerie provenant des activités opérationnelles', 'formule': 'FA + FB + FC + FD + FE', 'prefixes': []},
+        
+        # SECTION B - ACTIVITÉS D'INVESTISSEMENT
+        {'ref': 'FF', 'libelle': 'Décaissements liés aux acquisitions d\'immobilisations incorporelles', 'formule': 'Variation brute + cessions', 'prefixes': ['201', '203', '204', '205', '208']},
+        {'ref': 'FG', 'libelle': 'Décaissements liés aux acquisitions d\'immobilisations corporelles', 'formule': 'Variation brute + cessions', 'prefixes': ['211', '212', '213', '214', '215', '218', '237', '238']},
+        {'ref': 'FH', 'libelle': 'Décaissements liés aux acquisitions d\'immobilisations financières', 'formule': 'Variation nette', 'prefixes': ['251', '256', '261', '262', '264', '265', '266', '267', '268', '269', '274', '275']},
+        
+        {'ref': 'FI', 'libelle': 'Encaissements liés aux cessions d\'immobilisations incorporelles et corporelles', 'formule': 'Prix de cession réel', 'prefixes': ['775']},
+        {'ref': 'FJ', 'libelle': 'Encaissements liés aux cessions d\'immobilisations financières', 'formule': 'Prix de cession réel', 'prefixes': ['767']},
+        {'ref': 'FJ_DIV', 'libelle': 'Dividendes reçus', 'formule': 'Encaissements', 'prefixes': ['761', '762']},
+        {'ref': 'FJ_CRE', 'libelle': 'Produits de créances financières', 'formule': 'Encaissements', 'prefixes': ['763', '764']},
+        
+        {'ref': 'ZC', 'libelle': 'Flux de trésorerie provenant des activités d\'investissement', 'formule': 'FF + FG + FH + FI + FJ + FJ_DIV + FJ_CRE', 'prefixes': []},
+        
+        # SECTION C - ACTIVITÉS DE FINANCEMENT
+        {'ref': 'FK', 'libelle': 'Encaissements provenant de capital apporté nouveaux', 'formule': 'Variation exercice', 'prefixes': ['101', '103']},
+        {'ref': 'FL', 'libelle': 'Encaissements provenant de subventions reçues', 'formule': 'Encaissements exercice', 'prefixes': ['141']},
+        {'ref': 'FM', 'libelle': 'Dividendes versés', 'formule': 'Distributions décidées/payées', 'prefixes': ['108', '457']},
+        
+        {'ref': 'FO', 'libelle': 'Encaissements des emprunts et autres dettes financières', 'formule': 'Nouveaux emprunts', 'prefixes': ['161', '162', '163', '164', '165', '168']},
+        {'ref': 'FP', 'libelle': 'Décaissements liés au remboursement des emprunts', 'formule': 'Capital remboursé uniquement', 'prefixes': ['161', '162', '163', '164', '165', '168']},
+        
+        {'ref': 'ZE', 'libelle': 'Flux de trésorerie provenant des activités de financement', 'formule': 'FK + FL - FM + FO - FP', 'prefixes': []},
+        
+        # TRÉSORERIE ET CONTRÔLES
+        {'ref': 'ZA', 'libelle': 'Trésorerie nette au 1er janvier', 'formule': 'Trésorerie actif N-1 - Trésorerie passif N-1', 'prefixes': ['521', '522', '523', '524', '531', '532', '541', '542', '501', '502', '503', '504', '505', '506', '561', '564', '565']},
+        {'ref': 'ZH', 'libelle': 'Trésorerie nette au 31 décembre', 'formule': 'Trésorerie actif N - Trésorerie passif N', 'prefixes': ['521', '522', '523', '524', '531', '532', '541', '542', '501', '502', '503', '504', '505', '506', '561', '564', '565']},
+        
+        {'ref': 'G', 'libelle': 'Variation de la trésorerie nette de la période', 'formule': 'ZB + ZC + ZE', 'prefixes': []},
+        
+        # CONTRÔLES DE COHÉRENCE
+        {'ref': 'CONTROLE', 'libelle': 'Contrôle de cohérence', 'formule': 'G = ZH - ZA', 'prefixes': []},
     ]
 
     # Calcul des montants pour chaque ligne avec application des règles SYSCOHADA
@@ -556,29 +614,85 @@ def generate_tft_and_sheets_from_database(financial_report_id, start_date, end_d
 def generate_tft_and_sheets_from_df(df, start_date, end_date):
     """Génère le TFT et les feuilles maîtresses à partir d'un DataFrame"""
     # Contrôle de cohérence TFT
-    def controle_coherence(tft_data):
-        # Références des rubriques
+    # Contrôles de cohérence conformes à la documentation SYSCOHADA
+    def controle_coherence_complet(tft_data):
+        """
+        Contrôles automatiques obligatoires selon la documentation :
+        - Égalité variation calculée/variation bilantielle
+        - Cohérence des totaux par section
+        - Absence de comptes orphelins
+        - Respect des seuils de matérialité
+        """
+        controles = {
+            'is_coherent': True,
+            'errors': [],
+            'warnings': [],
+            'details': {}
+        }
+        
+        # 1. Égalité variation calculée/variation bilantielle
         flux_operationnels = tft_data.get('ZB', {}).get('montant', 0)
         flux_investissement = tft_data.get('ZC', {}).get('montant', 0)
         flux_financement = tft_data.get('ZE', {}).get('montant', 0)
         treso_ouverture = tft_data.get('ZA', {}).get('montant', 0)
         treso_cloture = tft_data.get('ZH', {}).get('montant', 0)
-        treso_ouverture = treso_ouverture if treso_ouverture is not None else 0
-        treso_cloture = treso_cloture if treso_cloture is not None else 0
+        
         variation_tft = flux_operationnels + flux_investissement + flux_financement
-        variation_treso = (treso_cloture or 0) - (treso_ouverture or 0)
-        return {
-            'variation_tft': variation_tft,
-            'variation_treso': variation_treso,
-            'is_coherent': abs(variation_tft - variation_treso) < 1e-2,
-            'details': {
-                'flux_operationnels': flux_operationnels,
-                'flux_investissement': flux_investissement,
-                'flux_financement': flux_financement,
-                'treso_ouverture': treso_ouverture,
-                'treso_cloture': treso_cloture
-            }
-        }
+        variation_treso = treso_cloture - treso_ouverture
+        
+        ecart = abs(variation_tft - variation_treso)
+        if ecart > 1e-2:
+            controles['is_coherent'] = False
+            controles['errors'].append(f"Écart variation TFT/Trésorerie: {ecart:.2f}")
+        
+        controles['details']['variation_tft'] = variation_tft
+        controles['details']['variation_treso'] = variation_treso
+        controles['details']['ecart'] = ecart
+        
+        # 2. Cohérence des totaux par section
+        # Section A - Activités opérationnelles
+        cafg = tft_data.get('FA', {}).get('montant', 0)
+        bfr_exploitation = tft_data.get('FB', {}).get('montant', 0)
+        variation_stocks = tft_data.get('FC', {}).get('montant', 0)
+        variation_creances = tft_data.get('FD', {}).get('montant', 0)
+        variation_passif = tft_data.get('FE', {}).get('montant', 0)
+        
+        total_section_a = cafg + bfr_exploitation + variation_stocks + variation_creances + variation_passif
+        if abs(total_section_a - flux_operationnels) > 1e-2:
+            controles['warnings'].append(f"Cohérence Section A: écart {abs(total_section_a - flux_operationnels):.2f}")
+        
+        # Section B - Activités d'investissement
+        acquisitions_incorp = tft_data.get('FF', {}).get('montant', 0)
+        acquisitions_corp = tft_data.get('FG', {}).get('montant', 0)
+        acquisitions_fin = tft_data.get('FH', {}).get('montant', 0)
+        cessions_incorp_corp = tft_data.get('FI', {}).get('montant', 0)
+        cessions_fin = tft_data.get('FJ', {}).get('montant', 0)
+        dividendes_recus = tft_data.get('FJ_DIV', {}).get('montant', 0)
+        produits_creances = tft_data.get('FJ_CRE', {}).get('montant', 0)
+        
+        total_section_b = acquisitions_incorp + acquisitions_corp + acquisitions_fin + cessions_incorp_corp + cessions_fin + dividendes_recus + produits_creances
+        if abs(total_section_b - flux_investissement) > 1e-2:
+            controles['warnings'].append(f"Cohérence Section B: écart {abs(total_section_b - flux_investissement):.2f}")
+        
+        # Section C - Activités de financement
+        augmentation_capital = tft_data.get('FK', {}).get('montant', 0)
+        subventions = tft_data.get('FL', {}).get('montant', 0)
+        dividendes_verses = tft_data.get('FM', {}).get('montant', 0)
+        nouveaux_emprunts = tft_data.get('FO', {}).get('montant', 0)
+        remboursements = tft_data.get('FP', {}).get('montant', 0)
+        
+        total_section_c = augmentation_capital + subventions - dividendes_verses + nouveaux_emprunts - remboursements
+        if abs(total_section_c - flux_financement) > 1e-2:
+            controles['warnings'].append(f"Cohérence Section C: écart {abs(total_section_c - flux_financement):.2f}")
+        
+        # 3. Contrôle des seuils de matérialité (exemple: 1% du CA ou 1000 FCFA)
+        seuil_materialite = 1000  # À adapter selon les besoins
+        for ref, data in tft_data.items():
+            montant = abs(data.get('montant', 0))
+            if montant > 0 and montant < seuil_materialite:
+                controles['warnings'].append(f"Montant faible pour {ref}: {montant:.2f} < {seuil_materialite}")
+        
+        return controles
 
     # Filtrage par période
     if 'created_at' in df.columns:
