@@ -191,11 +191,9 @@ tft_model = [
 ]
 ```
 
-### Détail des groupes de comptes
+### Détail des 10 feuilles maîtresses
 
-#### **Comptes de Bilan**
-
-**1. Capitaux Propres (10x)**
+#### **1. CAPITAUX**
 - 101 : Capital social
 - 103 : Primes liées au capital social  
 - 104 : Écarts d'évaluation
@@ -207,14 +205,15 @@ tft_model = [
 - 130 : Résultat en instance d'affectation
 - 131 : Résultat net de l'exercice
 
-**2. Immobilisations Incorporelles (20x)**
+#### **2. IMMOS CORPS & INCORPS**
+**Incorporelles :**
 - 201 : Frais de recherche et de développement
 - 203 : Logiciels
 - 204 : Brevets, licences, concessions et droits similaires
 - 205 : Fonds commercial et droit au bail
 - 208 : Autres immobilisations incorporelles
 
-**3. Immobilisations Corporelles (21x)**
+**Corporelles :**
 - 211 : Terrains
 - 212 : Agencements et aménagements de terrains
 - 213 : Bâtiments
@@ -224,7 +223,7 @@ tft_model = [
 - 237 : Immobilisations corporelles en cours
 - 238 : Avances et acomptes versés sur commandes d'immobilisations corporelles
 
-**4. Immobilisations Financières (25x)**
+#### **3. IMMOS FINANCIÈRES**
 - 251 : Titres de participation
 - 256 : Autres formes de participation
 - 261 : Titres immobilisés (droit de propriété)
@@ -238,7 +237,7 @@ tft_model = [
 - 274 : Créances immobilisées
 - 275 : Dépôts et cautionnements versés
 
-**5. Stocks (3xx)**
+#### **4. STOCKS**
 - 311 : Marchandises
 - 321 : Matières premières
 - 322 : Matières et fournitures consommables
@@ -251,7 +250,8 @@ tft_model = [
 - 358 : Déchets et rebuts
 - 39x : Dépréciations des stocks
 
-**6. Créances Clients (41x)**
+#### **5. CLIENTS - VENTES**
+**Comptes concernés :**
 - 411 : Clients
 - 416 : Clients douteux
 - 417 : Créances sur travaux non encore facturables
@@ -259,14 +259,37 @@ tft_model = [
 - 419 : Clients créditeurs, avances et acomptes reçus
 - 491 : Dépréciations des comptes clients
 
-**7. Dettes Fournisseurs (40x)**
+**Comptes de produits :**
+- 701 : Ventes de marchandises dans la région
+- 702 : Ventes de marchandises hors région
+- 703 : Ventes de produits fabriqués dans la région
+- 704 : Ventes de produits fabriqués hors région
+- 705 : Travaux facturés
+- 706 : Services vendus dans la région
+- 707 : Services vendus hors région
+- 708 : Produits des activités annexes
+- 781 : Transfert de charges d'exploitation
+
+#### **6. FOURNISSEURS - ACHATS**
+**Comptes concernés :**
 - 401 : Fournisseurs de stocks et services locaux
 - 402 : Fournisseurs de stocks et services dans la région
 - 403 : Fournisseurs de stocks et services hors région
 - 408 : Fournisseurs, factures non parvenues
 - 409 : Fournisseurs débiteurs, avances et acomptes versés
 
-**8. Personnel (42x)**
+**Comptes d'achats :**
+- 601 : Achats de marchandises dans la région
+- 602 : Achats de marchandises hors région
+- 603 : Variations de stocks de marchandises
+- 604 : Achats stockés de matières premières et fournitures liées
+- 605 : Autres achats stockés
+- 606 : Achats non stockés de matières et fournitures
+- 607 : Achats de travaux, études et prestations de service
+- 608 : Achats d'emballages récupérables
+
+#### **7. PERSONNEL**
+**Comptes concernés :**
 - 421 : Personnel, avances et acomptes
 - 422 : Personnel, rémunérations dues
 - 423 : Personnel, oppositions
@@ -275,7 +298,18 @@ tft_model = [
 - 43x : Organismes sociaux (CNSS, etc.)
 - 447 : Personnel, charges à payer
 
-**9. Impôts & Taxes (44x)**
+**Comptes de charges :**
+- 661 : Rémunérations directes versées au personnel national
+- 662 : Rémunérations directes versées au personnel non national
+- 663 : Indemnités forfaitaires versées au personnel
+- 664 : Charges sociales sur rémunérations du personnel national
+- 665 : Charges sociales sur rémunérations du personnel non national
+- 666 : Rémunérations transférées pour compte de tiers
+- 667 : Rémunérations de l'exploitant individuel
+- 668 : Autres charges sociales
+
+#### **8. IMPÔTS & TAXES**
+**Comptes concernés :**
 - 441 : État et collectivités publiques, subventions à recevoir
 - 442 : État, impôts et taxes recouvrables sur des tiers
 - 443 : État, TVA facturée sur ventes
@@ -286,7 +320,13 @@ tft_model = [
 - 448 : État, charges à payer et produits à recevoir
 - 449 : État, créditeurs et débiteurs divers
 
-**10. Financier (5xx)**
+**Comptes de charges :**
+- 631 : Impôts et taxes directs
+- 633 : Impôts, taxes et droits de douane
+- 635 : Autres impôts et taxes
+- 695 : Impôt sur le résultat
+
+#### **9. FINANCIER**
 - 501 : Titres de placement
 - 502 : Actions propres
 - 503 : Obligations et bons du Trésor
@@ -305,97 +345,45 @@ tft_model = [
 - 58x : Virements internes
 - 59x : Dépréciations
 
-**11. Provisions R&C (14x)**
+#### **10. PROVISIONS R&C**
 - 141 : Provisions pour risques
 - 142 : Provisions pour charges
 - 143 : Provisions pour pensions et obligations similaires
 - 148 : Autres provisions pour charges
 - 149 : Provisions pour dépréciation des comptes de la classe 1
 
-#### **Comptes de Charges (6xx)**
-
-**12. Charges Achats (60x)**
-- 601 : Achats de marchandises dans la région
-- 602 : Achats de marchandises hors région
-- 603 : Variations de stocks de marchandises
-- 604 : Achats stockés de matières premières et fournitures liées
-- 605 : Autres achats stockés
-- 606 : Achats non stockés de matières et fournitures
-- 607 : Achats de travaux, études et prestations de service
-- 608 : Achats d'emballages récupérables
-
-**13. Charges Personnel (66x)**
-- 661 : Rémunérations directes versées au personnel national
-- 662 : Rémunérations directes versées au personnel non national
-- 663 : Indemnités forfaitaires versées au personnel
-- 664 : Charges sociales sur rémunérations du personnel national
-- 665 : Charges sociales sur rémunérations du personnel non national
-- 666 : Rémunérations transférées pour compte de tiers
-- 667 : Rémunérations de l'exploitant individuel
-- 668 : Autres charges sociales
-
-**14. Charges Impôts (63x, 69x)**
-- 631 : Impôts et taxes directs
-- 633 : Impôts, taxes et droits de douane
-- 635 : Autres impôts et taxes
-- 695 : Impôt sur le résultat
-
-#### **Comptes de Produits (7xx)**
-
-**15. Produits Ventes (70x)**
-- 701 : Ventes de marchandises dans la région
-- 702 : Ventes de marchandises hors région
-- 703 : Ventes de produits fabriqués dans la région
-- 704 : Ventes de produits fabriqués hors région
-- 705 : Travaux facturés
-- 706 : Services vendus dans la région
-- 707 : Services vendus hors région
-- 708 : Produits des activités annexes
-- 781 : Transfert de charges d'exploitation
-
-### Groupes de comptes - Liste exhaustive SYSCOHADA
+### Groupes de comptes - 10 feuilles maîtresses exactes
 ```python
 groups = {
-    # CAPITAUX PROPRES
-    'capitaux_propres': ['101', '103', '104', '105', '106', '108', '109', '110', '130', '131'],
+    # 1. CAPITAUX
+    'Capitaux': ['101', '103', '104', '105', '106', '108', '109', '110', '130', '131'],
     
-    # IMMOBILISATIONS INCORPORELLES
-    'immobilisations_incorporelles': ['201', '203', '204', '205', '208'],
+    # 2. IMMOS CORPS & INCORPS
+    'Immos corps & incorps': ['201', '203', '204', '205', '208', '211', '212', '213', '214', '215', '218', '237', '238'],
     
-    # IMMOBILISATIONS CORPORELLES
-    'immobilisations_corporelles': ['211', '212', '213', '214', '215', '218', '237', '238'],
+    # 3. IMMOS FINANCIÈRES
+    'Immos financières': ['251', '256', '261', '262', '264', '265', '266', '267', '268', '269', '274', '275'],
     
-    # IMMOBILISATIONS FINANCIÈRES
-    'immobilisations_financieres': ['251', '256', '261', '262', '264', '265', '266', '267', '268', '269', '274', '275'],
+    # 4. STOCKS
+    'Stocks': ['311', '321', '322', '323', '331', '335', '341', '345', '351', '358', '39'],
     
-    # STOCKS
-    'stocks': ['311', '321', '322', '323', '331', '335', '341', '345', '351', '358', '39'],
+    # 5. CLIENTS - VENTES
+    'Clients - Ventes': ['411', '416', '417', '418', '419', '491', '701', '702', '703', '704', '705', '706', '707', '708', '781'],
     
-    # CRÉANCES CLIENTS
-    'clients_ventes': ['411', '416', '417', '418', '419', '491'],
+    # 6. FOURNISSEURS - ACHATS
+    'Fournisseurs - Achats': ['401', '402', '403', '408', '409', '601', '602', '603', '604', '605', '606', '607', '608'],
     
-    # DETTES FOURNISSEURS
-    'fournisseurs_achats': ['401', '402', '403', '408', '409'],
+    # 7. PERSONNEL
+    'Personnel': ['421', '422', '423', '424', '425', '43', '447', '661', '662', '663', '664', '665', '666', '667', '668'],
     
-    # PERSONNEL
-    'personnel': ['421', '422', '423', '424', '425', '43', '447'],
+    # 8. IMPÔTS & TAXES
+    'Impôts & Taxes': ['441', '442', '443', '444', '445', '446', '447', '448', '449', '631', '633', '635', '695'],
     
-    # IMPÔTS & TAXES
-    'impots_taxes': ['441', '442', '443', '444', '445', '446', '447', '448', '449'],
+    # 9. FINANCIER
+    'Financier': ['501', '502', '503', '504', '505', '506', '521', '522', '523', '524', '531', '532', '533', '541', '542', '58', '59'],
     
-    # FINANCIER
-    'financier': ['501', '502', '503', '504', '505', '506', '521', '522', '523', '524', '531', '532', '533', '541', '542', '58', '59'],
-    
-    # PROVISIONS R&C
-    'provisions_rc': ['141', '142', '143', '148', '149'],
-    
-    # COMPTES DE CHARGES
-    'charges_achats': ['601', '602', '603', '604', '605', '606', '607', '608'],
-    'charges_personnel': ['661', '662', '663', '664', '665', '666', '667', '668'],
-    'charges_impots': ['631', '633', '635', '695'],
-    
-    # COMPTES DE PRODUITS
-    'produits_ventes': ['701', '702', '703', '704', '705', '706', '707', '708', '781'],
+    # 10. PROVISIONS R&C
+    'Provisions R&C': ['141', '142', '143', '148', '149'],
 }
 ```
 
